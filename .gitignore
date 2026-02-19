@@ -1,2 +1,4 @@
 /.daml
 /log
+**/node_modules
+**/.next
