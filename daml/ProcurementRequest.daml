@@ -1,0 +1,336 @@
+-- | Canton Stealth Procurement - Tous les smart contracts
+-- | ProcurementRequest, SealedBid, AuditLog, ProcurementContract
+module ProcurementRequest where
+
+import DA.List (sortOn, head)
+import DA.Foldable (forA_)
+import DA.Time
+import Daml.Script
+import Main
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ProcurementRequest: L'appel d'offres créé par le Buyer
+-- ─────────────────────────────────────────────────────────────────────────────
+
+template ProcurementRequest
+  with
+    buyer               : Party
+    procurementId       : Text
+    title               : Text
+    description         : Text
+    estimatedBudget     : Decimal
+    deadline            : Time
+    invitedSuppliers    : [Party]
+    evaluationCriteria  : EvaluationCriteria
+    regulator           : Party
+    createdAt           : Time
+  where
+    signatory buyer
+    observer invitedSuppliers, regulator
+
+    ensure
+      title /= ""
+      && description /= ""
+      && estimatedBudget > 0.0
+      && procurementId /= ""
+      && not (null invitedSuppliers)
+      && validateCriteria evaluationCriteria
+
+    -- | Soumettre une offre scellée (nonconsuming = le contrat reste actif)
+    nonconsuming choice SubmitBid : ContractId SealedBid
+      with
+        supplier   : Party
+        bidDetails : BidDetails
+        bidSalt    : Text
+      controller supplier
+      do
+        currentTime <- getTime
+        assertMsg "Deadline has passed"           (currentTime < deadline)
+        assertMsg "Supplier not invited"          (supplier `elem` invitedSuppliers)
+        assertMsg "Bid amount must be positive"   (bidDetails.amount > 0.0)
+        assertMsg "Quality score out of range"    (bidDetails.qualityScore >= 0.0 && bidDetails.qualityScore <= 10.0)
+
+        let bidHash = calculateBidHash bidDetails.amount bidSalt
+
+        bidCid <- create SealedBid with
+          procurementRef    = self
+          procurementBuyer  = buyer
+          supplier          = supplier
+          bidHash           = bidHash
+          bidDetails        = bidDetails
+          bidSalt           = bidSalt
+          submittedAt       = currentTime
+          bidStatus         = BidSubmitted
+          bidRegulator      = regulator
+
+        create AuditLog with
+          eventType      = EvtBidSubmitted
+          procurementId  = procurementId
+          primaryParty   = supplier
+          allParties     = [buyer, supplier]
+          timestamp      = currentTime
+          details        = "Bid submitted by " <> show supplier
+          regulatorParty = regulator
+
+        return bidCid
+
+    -- | Annuler l'appel d'offres
+    choice CancelProcurement : ()
+      with
+        reason : Text
+      controller buyer
+      do
+        currentTime <- getTime
+        assertMsg "Reason required" (reason /= "")
+
+        create AuditLog with
+          eventType      = EvtProcurementCancelled
+          procurementId  = procurementId
+          primaryParty   = buyer
+          allParties     = [buyer]
+          timestamp      = currentTime
+          details        = "Cancelled: " <> reason
+          regulatorParty = regulator
+
+        return ()
+
+    -- | Révéler les offres et attribuer le contrat au meilleur fournisseur
+    choice RevealAndAward : Optional (ContractId ProcurementContract)
+      with
+        sealedBidCids : [ContractId SealedBid]
+      controller buyer
+      do
+        currentTime <- getTime
+        assertMsg "Deadline not reached yet" (currentTime >= deadline)
+
+        -- Cas sans aucune offre
+        if null sealedBidCids
+        then do
+          create AuditLog with
+            eventType      = EvtNoBidsReceived
+            procurementId  = procurementId
+            primaryParty   = buyer
+            allParties     = [buyer]
+            timestamp      = currentTime
+            details        = "No bids received"
+            regulatorParty = regulator
+          return None
+        else do
+          -- Lire et évaluer chaque offre
+          bidData <- forA sealedBidCids $ \bidCid -> do
+            bid <- fetch bidCid
+            let expectedHash = calculateBidHash bid.bidDetails.amount bid.bidSalt
+            assertMsg ("Hash mismatch for " <> show bid.supplier) (bid.bidHash == expectedHash)
+            let eval = evaluateBid evaluationCriteria bid.bidDetails estimatedBudget bid.supplier
+            return (bidCid, bid.supplier, bid.bidDetails, eval)
+
+          -- Garder uniquement les offres qualifiées
+          let qualifiedBids = filter (\(_, _, _, ev) -> ev.isQualified) bidData
+
+          if null qualifiedBids
+          then do
+            forA_ sealedBidCids (\c -> exercise c RevealBid)
+            create AuditLog with
+              eventType      = EvtBidsRevealed
+              procurementId  = procurementId
+              primaryParty   = buyer
+              allParties     = [buyer]
+              timestamp      = currentTime
+              details        = "No qualified bids after reveal"
+              regulatorParty = regulator
+            return None
+          else do
+            -- Trier par score décroissant → le meilleur est en tête
+            let sorted = sortOn (\(_, _, _, ev) -> negate ev.compositeScore) qualifiedBids
+            let (winCid, winSupplier, winDetails, winEval) = head sorted
+
+            -- Archiver les offres perdantes
+            let losingCids = filter (/= winCid) sealedBidCids
+            forA_ losingCids (\c -> exercise c RevealBid)
+
+            -- Créer le ProcurementContract
+            contractCid <- create ProcurementContract with
+              procurementId       = procurementId
+              contractBuyer       = buyer
+              winningSupplier     = winSupplier
+              contractAmount      = winDetails.amount
+              winningBidDetails   = winDetails
+              winningEvaluation   = winEval
+              contractStatus      = ContractAwarded
+              awardedAt           = currentTime
+              contractRegulator   = regulator
+              deliveryConfirmedAt = None
+              paidAt              = None
+              disputeReason       = None
+
+            exercise winCid RevealBid
+
+            create AuditLog with
+              eventType      = EvtContractAwarded
+              procurementId  = procurementId
+              primaryParty   = buyer
+              allParties     = [buyer, winSupplier]
+              timestamp      = currentTime
+              details        = "Contract awarded to " <> show winSupplier
+                               <> " | amount: " <> show winDetails.amount
+                               <> " | score: " <> show winEval.compositeScore
+              regulatorParty = regulator
+
+            return (Some contractCid)
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- SealedBid: Offre scellée d'un fournisseur
+-- ─────────────────────────────────────────────────────────────────────────────
+
+template SealedBid
+  with
+    procurementRef   : ContractId ProcurementRequest
+    procurementBuyer : Party
+    supplier         : Party
+    bidHash          : Text     -- Hash cryptographique du montant
+    bidDetails       : BidDetails
+    bidSalt          : Text
+    submittedAt      : Time
+    bidStatus        : BidStatus
+    bidRegulator     : Party
+  where
+    signatory supplier, procurementBuyer
+    observer bidRegulator
+
+    ensure
+      bidDetails.amount > 0.0
+      && bidHash /= ""
+      && bidSalt /= ""
+
+    -- | Retirer l'offre avant la deadline
+    choice WithdrawBid : ()
+      controller supplier
+      do
+        currentTime <- getTime
+        procurement <- fetch procurementRef
+        assertMsg "Deadline passed, cannot withdraw" (currentTime < procurement.deadline)
+        assertMsg "Bid not active"                   (bidStatus == BidSubmitted)
+
+        create AuditLog with
+          eventType      = EvtBidWithdrawn
+          procurementId  = procurement.procurementId
+          primaryParty   = supplier
+          allParties     = [procurementBuyer, supplier]
+          timestamp      = currentTime
+          details        = "Bid withdrawn by " <> show supplier
+          regulatorParty = bidRegulator
+
+        return ()
+
+    -- | Permet au buyer d'archiver cette offre lors de la révélation
+    choice RevealBid : ()
+      controller procurementBuyer
+      do return ()
+
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+
+template AuditLog
+  with
+    eventType      : AuditEventType
+    procurementId  : Text
+    primaryParty   : Party
+    allParties     : [Party]
+    timestamp      : Time
+    details        : Text
+    regulatorParty : Party
+  where
+    signatory primaryParty
+    observer regulatorParty
+
+    ensure
+      procurementId /= ""
+      && details /= ""
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ProcurementContract: Contrat attribué au fournisseur gagnant
+-- ─────────────────────────────────────────────────────────────────────────────
+
+template ProcurementContract
+  with
+    procurementId       : Text
+    contractBuyer       : Party
+    winningSupplier     : Party
+    contractAmount      : Decimal
+    winningBidDetails   : BidDetails
+    winningEvaluation   : BidEvaluation
+    contractStatus      : ContractStatus
+    awardedAt           : Time
+    contractRegulator   : Party
+    deliveryConfirmedAt : Optional Time
+    paidAt              : Optional Time
+    disputeReason       : Optional Text
+  where
+    signatory contractBuyer
+    observer winningSupplier, contractRegulator
+
+    ensure
+      contractAmount > 0.0
+      && procurementId /= ""
+
+    -- | Buyer confirme la livraison
+    choice ConfirmDelivery : ContractId ProcurementContract
+      controller contractBuyer
+      do
+        assertMsg "Invalid status for delivery confirmation"
+          (contractStatus == ContractAwarded || contractStatus == ContractInProgress)
+        currentTime <- getTime
+        _ <- create AuditLog with
+          eventType      = EvtDeliveryConfirmed
+          procurementId  = procurementId
+          primaryParty   = contractBuyer
+          allParties     = [contractBuyer, winningSupplier]
+          timestamp      = currentTime
+          details        = "Delivery confirmed by buyer"
+          regulatorParty = contractRegulator
+        create this with
+          contractStatus      = ContractDelivered
+          deliveryConfirmedAt = Some currentTime
+
+    -- | Buyer effectue le paiement
+    choice PaySupplier : ContractId ProcurementContract
+      controller contractBuyer
+      do
+        assertMsg "Delivery must be confirmed before payment" (contractStatus == ContractDelivered)
+        currentTime <- getTime
+        _ <- create AuditLog with
+          eventType      = EvtPaymentMade
+          procurementId  = procurementId
+          primaryParty   = contractBuyer
+          allParties     = [contractBuyer, winningSupplier]
+          timestamp      = currentTime
+          details        = "Payment of " <> show contractAmount <> " to " <> show winningSupplier
+          regulatorParty = contractRegulator
+        create this with
+          contractStatus = ContractPaid
+          paidAt         = Some currentTime
+
+    -- | Buyer ouvre un litige
+    choice DisputeContract : ContractId ProcurementContract
+      with
+        reason : Text
+      controller contractBuyer
+      do
+        assertMsg "Cannot dispute a paid contract"  (contractStatus /= ContractPaid)
+        assertMsg "Dispute reason required"         (reason /= "")
+        currentTime <- getTime
+        _ <- create AuditLog with
+          eventType      = EvtContractDisputed
+          procurementId  = procurementId
+          primaryParty   = contractBuyer
+          allParties     = [contractBuyer, winningSupplier]
+          timestamp      = currentTime
+          details        = "Dispute opened: " <> reason
+          regulatorParty = contractRegulator
+        newCid <- create this with
+          contractStatus = ContractDisputed
+          disputeReason  = Some reason
+        return newCid

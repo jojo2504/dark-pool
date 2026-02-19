@@ -1,0 +1,262 @@
+-- | Tests d'Audit et Compliance
+-- | Catégorie 3 : TC-201 à TC-204
+module Tests.ComplianceTests where
+
+import Daml.Script
+import DA.Time
+
+import Main
+import ProcurementRequest
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Helpers
+-- ─────────────────────────────────────────────────────────────────────────────
+
+mkProc : Party -> [Party] -> Party -> Text -> Time -> Script (ContractId ProcurementRequest)
+mkProc buyer suppliers regulator procId deadline = do
+  now <- getTime
+  submit buyer do
+    createCmd ProcurementRequest with
+      buyer              = buyer
+      procurementId      = procId
+      title              = "Compliance Test " <> procId
+      description        = "Compliance test description"
+      estimatedBudget    = 100_000_000.0
+      deadline           = deadline
+      invitedSuppliers   = suppliers
+      evaluationCriteria = defaultCriteria
+      regulator          = regulator
+      createdAt          = now
+
+mkBid : Decimal -> BidDetails
+mkBid amount = BidDetails with
+  amount               = amount
+  technicalDescription = "Compliance proposal"
+  deliveryDays         = 120
+  qualityScore         = 7.5
+  certifications       = []
+  warrantyMonths       = 24
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TC-201: Regulator voit tous les contrats en lecture
+-- ─────────────────────────────────────────────────────────────────────────────
+
+testRegulatorFullReadAccess : Script ()
+testRegulatorFullReadAccess = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  supplierB <- allocateParty "SupplierB"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProc buyer [supplierA, supplierB] regulator "COMP-201" deadline
+
+  -- Deux offres soumises
+  _bidA <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 100_000_000.0
+      bidSalt    = "saltA"
+
+  _bidB <- submit supplierB do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierB
+      bidDetails = mkBid 90_000_000.0
+      bidSalt    = "saltB"
+
+  -- Regulator voit le ProcurementRequest
+  procOpt <- queryContractId regulator procCid
+  assertMsg "Regulator must see ProcurementRequest" (procOpt /= None)
+
+  -- Regulator voit les AuditLogs (observer via regulatorParty)
+  auditLogs <- query @AuditLog regulator
+  assertMsg "Regulator must see AuditLogs" (length auditLogs >= 2)
+
+  -- Les logs de soumission existent
+  let submitLogs = filter (\(_, l) -> l.eventType == EvtBidSubmitted) auditLogs
+  assertMsg "Regulator sees bid submission logs" (length submitLogs == 2)
+
+  -- Regulator ne voit PAS les SealedBids (il est bidRegulator = observer)
+  bidLogsReg <- query @SealedBid regulator
+  -- Note: regulator est observer des SealedBids via bidRegulator
+  assertMsg "Regulator sees SealedBids as observer" (length bidLogsReg == 2)
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TC-202: AuditLog contient toute la traçabilité du cycle de vie
+-- ─────────────────────────────────────────────────────────────────────────────
+
+testAuditLogCompleteness : Script ()
+testAuditLogCompleteness = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProc buyer [supplierA] regulator "COMP-202" deadline
+
+  -- Offre soumise
+  bidCid <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 85_000_000.0
+      bidSalt    = "audit-salt"
+
+  -- Avance après deadline
+  setTime (addRelTime deadline (days 1))
+
+  -- Révélation et attribution
+  resultOpt <- submit buyer do
+    exerciseCmd procCid RevealAndAward with sealedBidCids = [bidCid]
+
+  -- Cycle de vie complet : Deliver → Pay
+  case resultOpt of
+    None -> abort "Contract must be awarded"
+    Some contractCid -> do
+      c2 <- submit buyer do exerciseCmd contractCid ConfirmDelivery
+      _c3 <- submit buyer do exerciseCmd c2 PaySupplier
+      pure ()
+
+  -- Vérifier la complétude des AuditLogs
+  auditLogs <- query @AuditLog regulator
+  let eventTypes = map (\(_, l) -> l.eventType) auditLogs
+
+  assertMsg "Log BidSubmitted exists"   (EvtBidSubmitted    `elem` eventTypes)
+  assertMsg "Log ContractAwarded exists" (EvtContractAwarded `elem` eventTypes)
+  assertMsg "Log DeliveryConfirmed exists" (EvtDeliveryConfirmed `elem` eventTypes)
+  assertMsg "Log PaymentMade exists"    (EvtPaymentMade     `elem` eventTypes)
+
+  -- Tous les logs référencent le même procurementId
+  let wrongProcId = filter (\(_, l) -> l.procurementId /= "COMP-202") auditLogs
+  assertMsg "All logs reference correct procurementId" (null wrongProcId)
+
+  -- Tous les logs ont un timestamp et des détails
+  let emptyDetails = filter (\(_, l) -> l.details == "") auditLogs
+  assertMsg "All logs have non-empty details" (null emptyDetails)
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TC-203: Regulator ne peut pas modifier (observer uniquement)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+testRegulatorCannotModify : Script ()
+testRegulatorCannotModify = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProc buyer [supplierA] regulator "COMP-203" deadline
+
+  -- TC-203a: Regulator tente d'exercer RevealAndAward → doit échouer
+  bidCid <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 80_000_000.0
+      bidSalt    = "regulator-test-salt"
+
+  setTime (addRelTime deadline (days 1))
+
+  revealResult <- submitMustFail regulator do
+    exerciseCmd procCid RevealAndAward with sealedBidCids = [bidCid]
+  assertMsg "TC-203a: Regulator cannot RevealAndAward" True
+
+  -- TC-203b: Regulator tente de CancelProcurement (appartenant à buyer) → doit échouer
+  createResult <- submitMustFail regulator do
+    exerciseCmd procCid CancelProcurement with reason = "Regulator cancel attempt"
+  assertMsg "TC-203b: Regulator cannot cancel buyer's procurement" True
+
+  -- TC-203c: Regulator tente de soumettre un SealedBid → doit échouer
+  submitResult <- submitMustFail regulator do
+    exerciseCmd procCid SubmitBid with
+      supplier   = regulator
+      bidDetails = mkBid 50_000_000.0
+      bidSalt    = "reg-bid-salt"
+  assertMsg "TC-203c: Regulator cannot submit a bid (not invited)" True
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TC-204: Auditabilité post-award - reconstruct timeline
+-- ─────────────────────────────────────────────────────────────────────────────
+
+testPostAwardAuditability : Script ()
+testPostAwardAuditability = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  supplierB <- allocateParty "SupplierB"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProc buyer [supplierA, supplierB] regulator "COMP-204" deadline
+
+  -- Deux offres
+  bidCidA <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 100_000_000.0
+      bidSalt    = "saltA204"
+
+  bidCidB <- submit supplierB do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierB
+      bidDetails = mkBid 92_000_000.0
+      bidSalt    = "saltB204"
+
+  setTime (addRelTime deadline (days 1))
+
+  resultOpt <- submit buyer do
+    exerciseCmd procCid RevealAndAward with
+      sealedBidCids = [bidCidA, bidCidB]
+
+  case resultOpt of
+    None -> abort "Contract must be awarded"
+    Some contractCid -> do
+      -- Vérifier que le gagnant est B (montant le plus bas = meilleur score)
+      contractOpt <- queryContractId regulator contractCid
+      case contractOpt of
+        None -> abort "Regulator must see ProcurementContract"
+        Some contract -> do
+          assertMsg "Winner is supplierB (lower amount = better price score)"
+            (contract.winningSupplier == supplierB)
+          assertMsg "Contract amount is 92M"
+            (contract.contractAmount == 92_000_000.0)
+          assertMsg "Contract status is Awarded"
+            (contract.contractStatus == ContractAwarded)
+
+      -- Vérifier la traçabilité via AuditLogs
+      auditLogs <- query @AuditLog regulator
+      let awardedLogs = filter (\(_, l) -> l.eventType == EvtContractAwarded) auditLogs
+      assertMsg "AuditLog for award exists" (length awardedLogs == 1)
+
+      -- Le log mentionne le winner
+      case awardedLogs of
+        [] -> abort "Award log expected"
+        (_, awardLog) :: _ -> do
+          assertMsg "Award log mentions supplierB"
+            (supplierB `elem` awardLog.allParties)
+          assertMsg "Award log procurement id matches"
+            (awardLog.procurementId == "COMP-204")
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Test Runner
+-- ─────────────────────────────────────────────────────────────────────────────
+
+runAllComplianceTests : Script ()
+runAllComplianceTests = script do
+  testRegulatorFullReadAccess
+  testAuditLogCompleteness
+  testRegulatorCannotModify
+  testPostAwardAuditability

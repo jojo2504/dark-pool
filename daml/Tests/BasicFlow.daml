@@ -1,0 +1,382 @@
+-- | Tests de Base - Flux Basiques
+-- | Catégorie 1: Tests de flux nominaux
+module Tests.BasicFlow where
+
+import Daml.Script
+import DA.Time
+import DA.Assert
+
+import Main
+import ProcurementRequest
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Helpers
+-- ─────────────────────────────────────────────────────────────────────────────
+
+mkProcurement : Party -> [Party] -> Party -> Text -> Time -> Script (ContractId ProcurementRequest)
+mkProcurement buyer suppliers regulator procId deadline = do
+  now <- getTime
+  submit buyer do
+    createCmd ProcurementRequest with
+      buyer              = buyer
+      procurementId      = procId
+      title              = "Test Procurement " <> procId
+      description        = "Test description"
+      estimatedBudget    = 150_000_000.0
+      deadline           = deadline
+      invitedSuppliers   = suppliers
+      evaluationCriteria = defaultCriteria
+      regulator          = regulator
+      createdAt          = now
+
+mkBid : Decimal -> Int -> Decimal -> BidDetails
+mkBid amount delivery quality = BidDetails with
+  amount               = amount
+  technicalDescription = "Standard proposal"
+  deliveryDays         = delivery
+  qualityScore         = quality
+  certifications       = []
+  warrantyMonths       = 24
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TC-001: Création d'un ProcurementRequest valide
+-- ─────────────────────────────────────────────────────────────────────────────
+
+testCreateProcurementRequest : Script ()
+testCreateProcurementRequest = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  supplierB <- allocateParty "SupplierB"
+  supplierC <- allocateParty "SupplierC"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProcurement buyer [supplierA, supplierB, supplierC] regulator "PROC-001" deadline
+
+  procOpt <- queryContractId buyer procCid
+  case procOpt of
+    None -> abort "Procurement contract not found"
+    Some proc -> do
+      proc.buyer                   === buyer
+      proc.procurementId           === "PROC-001"
+      length proc.invitedSuppliers === 3
+      proc.estimatedBudget         === 150_000_000.0
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TC-002: Soumission d'offre scellée valide
+-- ─────────────────────────────────────────────────────────────────────────────
+
+testSubmitSealedBid : Script ()
+testSubmitSealedBid = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProcurement buyer [supplierA] regulator "PROC-002" deadline
+
+  let bidDetails = mkBid 100_000_000.0 180 8.5
+
+  bidCid <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = bidDetails
+      bidSalt    = "salt-supplier-a-001"
+
+  bidOpt <- queryContractId supplierA bidCid
+  case bidOpt of
+    None -> abort "Bid contract not found"
+    Some bid -> do
+      bid.supplier          === supplierA
+      bid.bidDetails.amount === 100_000_000.0
+      bid.bidStatus         === BidSubmitted
+      bid.bidHash           === calculateBidHash 100_000_000.0 "salt-supplier-a-001"
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TC-003: Soumission de multiple offres indépendantes
+-- ─────────────────────────────────────────────────────────────────────────────
+
+testMultipleBidSubmissions : Script ()
+testMultipleBidSubmissions = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  supplierB <- allocateParty "SupplierB"
+  supplierC <- allocateParty "SupplierC"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProcurement buyer [supplierA, supplierB, supplierC] regulator "PROC-003" deadline
+
+  bidCidA <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 100_000_000.0 180 8.0
+      bidSalt    = "saltA"
+
+  bidCidB <- submit supplierB do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierB
+      bidDetails = mkBid 95_000_000.0 160 7.5
+      bidSalt    = "saltB"
+
+  bidCidC <- submit supplierC do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierC
+      bidDetails = mkBid 110_000_000.0 200 9.0
+      bidSalt    = "saltC"
+
+  bidAOpt <- queryContractId supplierA bidCidA
+  bidBOpt <- queryContractId supplierB bidCidB
+  bidCOpt <- queryContractId supplierC bidCidC
+  case (bidAOpt, bidBOpt, bidCOpt) of
+    (Some bidA, Some bidB, Some bidC) -> do
+      bidA.bidDetails.amount === 100_000_000.0
+      bidB.bidDetails.amount === 95_000_000.0
+      bidC.bidDetails.amount === 110_000_000.0
+      bidA.supplier === supplierA
+      bidB.supplier === supplierB
+      bidC.supplier === supplierC
+    _ -> abort "One or more bids not found"
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TC-004: Révélation et attribution au meilleur prix
+-- ─────────────────────────────────────────────────────────────────────────────
+
+testRevealAndAward : Script ()
+testRevealAndAward = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  supplierB <- allocateParty "SupplierB"
+  supplierC <- allocateParty "SupplierC"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProcurement buyer [supplierA, supplierB, supplierC] regulator "PROC-004" deadline
+
+  bidCidA <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 100_000_000.0 180 8.0
+      bidSalt    = "saltA"
+
+  bidCidB <- submit supplierB do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierB
+      bidDetails = mkBid 95_000_000.0 160 7.5
+      bidSalt    = "saltB"
+
+  bidCidC <- submit supplierC do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierC
+      bidDetails = mkBid 110_000_000.0 200 9.0
+      bidSalt    = "saltC"
+
+  setTime (addRelTime deadline (days 1))
+
+  resultOpt <- submit buyer do
+    exerciseCmd procCid RevealAndAward with
+      sealedBidCids = [bidCidA, bidCidB, bidCidC]
+
+  case resultOpt of
+    None -> abort "Expected contract to be awarded"
+    Some contractCid -> do
+      contractOpt <- queryContractId buyer contractCid
+      case contractOpt of
+        None -> abort "Contract not found"
+        Some contract -> do
+          contract.winningSupplier === supplierB
+          contract.contractAmount  === 95_000_000.0
+          contract.contractStatus  === ContractAwarded
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TC-303: Retrait d'offre avant deadline
+-- ─────────────────────────────────────────────────────────────────────────────
+
+testWithdrawBid : Script ()
+testWithdrawBid = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProcurement buyer [supplierA] regulator "PROC-303" deadline
+
+  bidCid <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 100_000_000.0 180 8.0
+      bidSalt    = "salt123"
+
+  submit supplierA do exerciseCmd bidCid WithdrawBid
+
+  result <- queryContractId supplierA bidCid
+  result === None
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TC-604: Annulation de l'appel d'offres
+-- ─────────────────────────────────────────────────────────────────────────────
+
+testCancelProcurement : Script ()
+testCancelProcurement = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProcurement buyer [supplierA] regulator "PROC-604" deadline
+
+  submit buyer do
+    exerciseCmd procCid CancelProcurement with reason = "Budget reallocation"
+
+  result <- queryContractId buyer procCid
+  result === None
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TC-601: Aucune offre → pas d'attribution
+-- ─────────────────────────────────────────────────────────────────────────────
+
+testNoBidsNoneAwarded : Script ()
+testNoBidsNoneAwarded = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProcurement buyer [supplierA] regulator "PROC-601" deadline
+
+  setTime (addRelTime deadline (days 1))
+
+  result <- submit buyer do
+    exerciseCmd procCid RevealAndAward with sealedBidCids = []
+
+  result === None
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TC-501: Cycle de vie complet (Award → Deliver → Pay)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+testFullContractLifecycle : Script ()
+testFullContractLifecycle = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProcurement buyer [supplierA] regulator "PROC-501" deadline
+
+  bidCid <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 100_000_000.0 180 8.0
+      bidSalt    = "salt-lifecycle"
+
+  setTime (addRelTime deadline (days 1))
+
+  resultOpt <- submit buyer do
+    exerciseCmd procCid RevealAndAward with sealedBidCids = [bidCid]
+
+  case resultOpt of
+    None -> abort "Contract should be awarded"
+    Some contractCid -> do
+      c2 <- submit buyer do exerciseCmd contractCid ConfirmDelivery
+      contract2Opt <- queryContractId buyer c2
+      case contract2Opt of
+        None -> abort "ConfirmDelivery contract not found"
+        Some contract2 -> contract2.contractStatus === ContractDelivered
+
+      c3 <- submit buyer do exerciseCmd c2 PaySupplier
+      contract3Opt <- queryContractId buyer c3
+      case contract3Opt of
+        None -> abort "PaySupplier contract not found"
+        Some contract3 -> contract3.contractStatus === ContractPaid
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TC-502: Ouverture de litige
+-- ─────────────────────────────────────────────────────────────────────────────
+
+testDisputeContract : Script ()
+testDisputeContract = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProcurement buyer [supplierA] regulator "PROC-502" deadline
+
+  bidCid <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 100_000_000.0 180 8.0
+      bidSalt    = "salt-dispute"
+
+  setTime (addRelTime deadline (days 1))
+
+  resultOpt <- submit buyer do
+    exerciseCmd procCid RevealAndAward with sealedBidCids = [bidCid]
+
+  case resultOpt of
+    None -> abort "Contract should be awarded"
+    Some contractCid -> do
+      disputedCid <- submit buyer do
+        exerciseCmd contractCid DisputeContract with
+          reason = "Goods not matching specifications"
+
+      disputedOpt <- queryContractId buyer disputedCid
+      case disputedOpt of
+        None -> abort "Disputed contract not found"
+        Some disputed -> do
+          disputed.contractStatus === ContractDisputed
+          disputed.disputeReason  === Some "Goods not matching specifications"
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Test Runner
+-- ─────────────────────────────────────────────────────────────────────────────
+
+runAllBasicTests : Script ()
+runAllBasicTests = script do
+  testCreateProcurementRequest
+  testSubmitSealedBid
+  testMultipleBidSubmissions
+  testRevealAndAward
+  testWithdrawBid
+  testCancelProcurement
+  testNoBidsNoneAwarded
+  testFullContractLifecycle
+  testDisputeContract
+  pure ()

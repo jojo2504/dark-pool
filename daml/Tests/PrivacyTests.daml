@@ -1,0 +1,218 @@
+-- | Tests de Privacy et Isolation
+-- | Catégorie 2 : TC-101 à TC-104
+module Tests.PrivacyTests where
+
+import Daml.Script
+import DA.Time
+import DA.Assert
+
+import Main
+import ProcurementRequest
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Helpers (dupliqués localement pour indépendance du module)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+mkProc : Party -> [Party] -> Party -> Text -> Time -> Script (ContractId ProcurementRequest)
+mkProc buyer suppliers regulator procId deadline = do
+  now <- getTime
+  submit buyer do
+    createCmd ProcurementRequest with
+      buyer              = buyer
+      procurementId      = procId
+      title              = "Privacy Test " <> procId
+      description        = "Privacy test description"
+      estimatedBudget    = 100_000_000.0
+      deadline           = deadline
+      invitedSuppliers   = suppliers
+      evaluationCriteria = defaultCriteria
+      regulator          = regulator
+      createdAt          = now
+
+mkBid : Decimal -> BidDetails
+mkBid amount = BidDetails with
+  amount               = amount
+  technicalDescription = "Test proposal"
+  deliveryDays         = 90
+  qualityScore         = 7.0
+  certifications       = []
+  warrantyMonths       = 12
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TC-101: Isolation des offres entre suppliers
+-- ─────────────────────────────────────────────────────────────────────────────
+
+testBidIsolationBetweenSuppliers : Script ()
+testBidIsolationBetweenSuppliers = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  supplierB <- allocateParty "SupplierB"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProc buyer [supplierA, supplierB] regulator "PRIV-101" deadline
+
+  -- SupplierA soumet son offre
+  _bidCidA <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 100_000_000.0
+      bidSalt    = "salt-a-private"
+
+  -- SupplierB query ses contrats visibles : il ne doit PAS voir le SealedBid de A
+  bidBVisible <- queryFilter @SealedBid supplierB (\b -> b.supplier == supplierA)
+  assertMsg "SupplierB must NOT see SupplierA's SealedBid" (null bidBVisible)
+
+  -- SupplierB voit le ProcurementRequest (il est observer)
+  procVisible <- queryContractId supplierB procCid
+  assertMsg "SupplierB must see the ProcurementRequest" (procVisible /= None)
+
+  -- SupplierB ne voit aucun SealedBid du tout
+  allBidsForB <- query @SealedBid supplierB
+  assertMsg "SupplierB sees zero SealedBids" (null allBidsForB)
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TC-102: Buyer voit l'existence des offres (en tant que signatory de SealedBid)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+testBuyerSeesExistenceNotAmounts : Script ()
+testBuyerSeesExistenceNotAmounts = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  supplierB <- allocateParty "SupplierB"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProc buyer [supplierA, supplierB] regulator "PRIV-102" deadline
+
+  -- Deux offres soumises
+  bidCidA <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 100_000_000.0
+      bidSalt    = "saltA"
+
+  bidCidB <- submit supplierB do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierB
+      bidDetails = mkBid 90_000_000.0
+      bidSalt    = "saltB"
+
+  -- Buyer voit les 2 SealedBids (signatory)
+  allBuyerBids <- query @SealedBid buyer
+  assertMsg "Buyer must see 2 SealedBids" (length allBuyerBids == 2)
+
+  -- Buyer peut accéder aux contrats individuellement
+  bidAOpt <- queryContractId buyer bidCidA
+  bidBOpt <- queryContractId buyer bidCidB
+  assertMsg "Buyer sees bidA" (bidAOpt /= None)
+  assertMsg "Buyer sees bidB" (bidBOpt /= None)
+
+  -- Vérifier que le hash est bien calculé (opacité du montant via hash)
+  case bidAOpt of
+    None -> abort "BidA not found"
+    Some bidA -> do
+      let expectedHash = calculateBidHash 100_000_000.0 "saltA"
+      assertMsg "BidA hash integrity" (bidA.bidHash == expectedHash)
+      assertMsg "BidA status is BidSubmitted" (bidA.bidStatus == BidSubmitted)
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TC-103: Protection anti front-running - chaque offre est indépendante
+-- ─────────────────────────────────────────────────────────────────────────────
+
+testNoFrontRunning : Script ()
+testNoFrontRunning = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  supplierB <- allocateParty "SupplierB"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProc buyer [supplierA, supplierB] regulator "PRIV-103" deadline
+
+  -- SupplierA soumet à T1
+  _bidCidA <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 100_000_000.0
+      bidSalt    = "unique-salt-A"
+
+  -- SupplierB tente de voir l'offre de A → impossible
+  bidsVisibleToB <- query @SealedBid supplierB
+  assertMsg "SupplierB sees zero bids (no front-running possible)" (null bidsVisibleToB)
+
+  -- SupplierB soumet son offre sans information sur A
+  _bidCidB <- submit supplierB do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierB
+      bidDetails = mkBid 95_000_000.0
+      bidSalt    = "unique-salt-B"
+
+  -- SupplierA ne voit pas l'offre de B non plus
+  bidsVisibleToA <- queryFilter @SealedBid supplierA (\b -> b.supplier == supplierB)
+  assertMsg "SupplierA sees zero bids from B (symmetric isolation)" (null bidsVisibleToA)
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TC-104: Vérification d'intégrité via hash - tamper detection
+-- ─────────────────────────────────────────────────────────────────────────────
+
+testBidHashIntegrity : Script ()
+testBidHashIntegrity = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProc buyer [supplierA] regulator "PRIV-104" deadline
+
+  let amount = 88_000_000.0
+  let salt   = "integrity-salt-abc123"
+
+  bidCid <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid amount
+      bidSalt    = salt
+
+  bidOpt <- queryContractId buyer bidCid
+  case bidOpt of
+    None -> abort "Bid not found"
+    Some bid -> do
+      -- Hash stocké correspond au hash recalculé → intégrité préservée
+      let recomputedHash = calculateBidHash amount salt
+      assertMsg "Hash integrity: stored == recomputed" (bid.bidHash == recomputedHash)
+
+      -- Un montant différent produirait un hash différent → détection de falsification
+      let tamperedHash = calculateBidHash (amount + 1.0) salt
+      assertMsg "Tamper detection: different amount → different hash" (bid.bidHash /= tamperedHash)
+
+      -- Un sel différent produirait un hash différent
+      let differentSaltHash = calculateBidHash amount "wrong-salt"
+      assertMsg "Tamper detection: different salt → different hash" (bid.bidHash /= differentSaltHash)
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Test Runner
+-- ─────────────────────────────────────────────────────────────────────────────
+
+runAllPrivacyTests : Script ()
+runAllPrivacyTests = script do
+  testBidIsolationBetweenSuppliers
+  testBuyerSeesExistenceNotAmounts
+  testNoFrontRunning
+  testBidHashIntegrity

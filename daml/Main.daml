@@ -1,0 +1,182 @@
+-- | Canton Stealth Procurement (CSP)
+-- | Types et structures de données communes
+module Main where
+
+import DA.Time
+import Daml.Script
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Types de statut (tous préfixés pour éviter les conflits)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- | Statut d'un appel d'offres
+data ProcurementStatus
+  = ProcOpen          -- Ouvert aux soumissions
+  | ProcClosed        -- Fermé, en attente de révélation
+  | ProcAwarded       -- Attribué à un fournisseur
+  | ProcCancelled     -- Annulé par l'acheteur
+  | ProcCompleted     -- Exécuté et terminé
+  deriving (Eq, Show)
+
+-- | Statut d'une offre scellée
+data BidStatus
+  = BidSubmitted      -- Soumise et active
+  | BidWithdrawn      -- Retirée par le fournisseur
+  | BidRevealed       -- Révélée lors du dénouement
+  | BidArchived       -- Archivée (perdante ou annulée)
+  deriving (Eq, Show)
+
+-- | Statut d'exécution d'un contrat
+data ContractStatus
+  = ContractAwarded   -- Attribué, en attente d'exécution
+  | ContractInProgress -- En cours d'exécution
+  | ContractDelivered -- Livré, en attente de paiement
+  | ContractPaid      -- Payé et finalisé
+  | ContractDisputed  -- En litige
+  deriving (Eq, Show)
+
+-- | Type d'événement pour l'audit trail
+data AuditEventType
+  = EvtRequestCreated
+  | EvtBidSubmitted
+  | EvtBidWithdrawn
+  | EvtBidsRevealed
+  | EvtContractAwarded
+  | EvtDeliveryConfirmed
+  | EvtPaymentMade
+  | EvtContractDisputed
+  | EvtProcurementCancelled
+  | EvtNoBidsReceived
+  deriving (Eq, Show)
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Structures de données
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- | Critères d'évaluation pour les offres
+data EvaluationCriteria = EvaluationCriteria
+  with
+    priceWeight     : Decimal  -- Pondération du prix (0.0 à 1.0)
+    qualityWeight   : Decimal  -- Pondération de la qualité (0.0 à 1.0)
+    deliveryWeight  : Decimal  -- Pondération du délai (0.0 à 1.0)
+    minQuality      : Decimal  -- Qualité minimale requise (0.0 à 10.0)
+    maxDeliveryDays : Int      -- Délai maximum accepté (jours)
+  deriving (Eq, Show)
+
+-- | Détails techniques d'une offre
+data BidDetails = BidDetails
+  with
+    amount               : Decimal  -- Montant de l'offre
+    technicalDescription : Text     -- Description technique
+    deliveryDays         : Int      -- Délai de livraison (jours)
+    qualityScore         : Decimal  -- Score qualité auto-évalué (0.0 à 10.0)
+    certifications       : [Text]   -- Certifications
+    warrantyMonths       : Int      -- Durée de garantie (mois)
+  deriving (Eq, Show)
+
+-- | Résultat de l'évaluation d'une offre
+data BidEvaluation = BidEvaluation
+  with
+    supplier        : Party
+    bidDetails      : BidDetails
+    compositeScore  : Decimal        -- Score composite pondéré
+    isQualified     : Bool           -- Répond aux critères minimaux
+    rejectionReason : Optional Text
+  deriving (Eq, Show)
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Fonctions utilitaires
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- | Calcul pseudo-hash pour sceller un montant
+calculateBidHash : Decimal -> Text -> Text
+calculateBidHash amount salt =
+  "SEALED:" <> show amount <> ":" <> salt
+
+-- | Validation des critères d'évaluation
+validateCriteria : EvaluationCriteria -> Bool
+validateCriteria c =
+  let w = c.priceWeight + c.qualityWeight + c.deliveryWeight
+  in  w > 0.99 && w < 1.01
+      && c.minQuality >= 0.0 && c.minQuality <= 10.0
+      && c.maxDeliveryDays > 0
+
+-- | Évaluation d'une offre selon les critères
+evaluateBid : EvaluationCriteria -> BidDetails -> Decimal -> Party -> BidEvaluation
+evaluateBid criteria bid maxAmount supplierParty =
+  let
+    priceScore =
+      if maxAmount > 0.0
+      then (maxAmount - bid.amount) / maxAmount
+      else 0.0
+
+    qualScore = bid.qualityScore / 10.0
+
+    delivScore =
+      if criteria.maxDeliveryDays > 0
+      then
+        let maxD = intToDecimal criteria.maxDeliveryDays
+            curD = intToDecimal bid.deliveryDays
+        in (maxD - curD) / maxD
+      else 0.0
+
+    composite =
+      priceScore * criteria.priceWeight
+      + qualScore  * criteria.qualityWeight
+      + delivScore * criteria.deliveryWeight
+
+    meetsQuality  = bid.qualityScore >= criteria.minQuality
+    meetsDelivery = bid.deliveryDays <= criteria.maxDeliveryDays
+    meetsAmount   = bid.amount > 0.0
+    qualified     = meetsQuality && meetsDelivery && meetsAmount
+
+    reason =
+      if not qualified
+      then Some ("Failed: "
+                 <> (if not meetsQuality  then "quality " else "")
+                 <> (if not meetsDelivery then "delivery " else "")
+                 <> (if not meetsAmount   then "amount" else ""))
+      else None
+  in
+    BidEvaluation with
+      supplier        = supplierParty
+      bidDetails      = bid
+      compositeScore  = composite
+      isQualified     = qualified
+      rejectionReason = reason
+
+-- | Critères par défaut (100 % sur le prix)
+defaultCriteria : EvaluationCriteria
+defaultCriteria = EvaluationCriteria with
+  priceWeight     = 1.0
+  qualityWeight   = 0.0
+  deliveryWeight  = 0.0
+  minQuality      = 0.0
+  maxDeliveryDays = 365
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Script de setup (init-script)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+setup : Script ()
+setup = script do
+  buyer     <- allocatePartyByHint (PartyIdHint "Buyer")
+  supplierA <- allocatePartyByHint (PartyIdHint "SupplierA")
+  supplierB <- allocatePartyByHint (PartyIdHint "SupplierB")
+  supplierC <- allocatePartyByHint (PartyIdHint "SupplierC")
+  regulator <- allocatePartyByHint (PartyIdHint "Regulator")
+
+  buyerId     <- validateUserId "buyer"
+  supplierAId <- validateUserId "supplierA"
+  supplierBId <- validateUserId "supplierB"
+  supplierCId <- validateUserId "supplierC"
+  regulatorId <- validateUserId "regulator"
+
+  createUser (User buyerId     (Some buyer))     [CanActAs buyer]
+  createUser (User supplierAId (Some supplierA)) [CanActAs supplierA]
+  createUser (User supplierBId (Some supplierB)) [CanActAs supplierB]
+  createUser (User supplierCId (Some supplierC)) [CanActAs supplierC]
+  createUser (User regulatorId (Some regulator)) [CanActAs regulator]
+
+  pure ()
+

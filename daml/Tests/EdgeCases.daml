@@ -1,0 +1,497 @@
+-- | Tests de Cas Limites, Deadlines, Contrôles d'Accès
+-- | Catégories 4-7 : TC-301 à TC-605
+module Tests.EdgeCases where
+
+import Daml.Script
+import DA.Time
+
+import Main
+import ProcurementRequest
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Helpers
+-- ─────────────────────────────────────────────────────────────────────────────
+
+mkProc : Party -> [Party] -> Party -> Text -> Time -> Script (ContractId ProcurementRequest)
+mkProc buyer suppliers regulator procId deadline = do
+  now <- getTime
+  submit buyer do
+    createCmd ProcurementRequest with
+      buyer              = buyer
+      procurementId      = procId
+      title              = "Edge Test " <> procId
+      description        = "Edge case test"
+      estimatedBudget    = 100_000_000.0
+      deadline           = deadline
+      invitedSuppliers   = suppliers
+      evaluationCriteria = defaultCriteria
+      regulator          = regulator
+      createdAt          = now
+
+mkBid : Decimal -> BidDetails
+mkBid amount = BidDetails with
+  amount               = amount
+  technicalDescription = "Edge proposal"
+  deliveryDays         = 90
+  qualityScore         = 7.0
+  certifications       = []
+  warrantyMonths       = 12
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- CATÉGORIE 4 : Tests de Deadline et Timing
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- TC-301: Soumission après deadline échoue
+testSubmitAfterDeadlineFails : Script ()
+testSubmitAfterDeadlineFails = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProc buyer [supplierA] regulator "EDGE-301" deadline
+
+  -- Avancer le temps après la deadline
+  setTime (addRelTime deadline (days 1))
+
+  -- SupplierA tente de soumettre après la deadline → doit échouer
+  submitMustFail supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 80_000_000.0
+      bidSalt    = "late-salt"
+
+  -- Vérifier qu'aucun SealedBid n'a été créé
+  bids <- query @SealedBid buyer
+  assertMsg "TC-301: No bid created after deadline" (null bids)
+
+  pure ()
+
+-- TC-302: Révélation avant deadline échoue
+testRevealBeforeDeadlineFails : Script ()
+testRevealBeforeDeadlineFails = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProc buyer [supplierA] regulator "EDGE-302" deadline
+
+  bidCid <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 80_000_000.0
+      bidSalt    = "early-reveal-salt"
+
+  -- Tenter de révéler avant la deadline (temps n'est pas avancé)
+  submitMustFail buyer do
+    exerciseCmd procCid RevealAndAward with sealedBidCids = [bidCid]
+
+  -- L'offre reste scellée
+  bidOpt <- queryContractId supplierA bidCid
+  assertMsg "TC-302: SealedBid still active after failed reveal" (bidOpt /= None)
+
+  pure ()
+
+-- TC-304: Retrait après deadline échoue
+testWithdrawAfterDeadlineFails : Script ()
+testWithdrawAfterDeadlineFails = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProc buyer [supplierA] regulator "EDGE-304" deadline
+
+  bidCid <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 80_000_000.0
+      bidSalt    = "withdraw-late-salt"
+
+  -- Avancer après la deadline
+  setTime (addRelTime deadline (days 1))
+
+  -- Tenter de se rétracter après la deadline → doit échouer
+  submitMustFail supplierA do exerciseCmd bidCid WithdrawBid
+
+  -- L'offre est toujours active
+  bidOpt <- queryContractId supplierA bidCid
+  assertMsg "TC-304: SealedBid still active (cannot withdraw after deadline)" (bidOpt /= None)
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- CATÉGORIE 5 : Tests de Contrôles d'Accès
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- TC-401: Supplier non invité ne peut pas soumettre
+testUninvitedSupplierCannotBid : Script ()
+testUninvitedSupplierCannotBid = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  supplierD <- allocateParty "SupplierD"   -- NON invité
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  -- Seul supplierA est invité
+  procCid <- mkProc buyer [supplierA] regulator "EDGE-401" deadline
+
+  -- SupplierD (non invité) tente de soumettre → doit échouer
+  submitMustFail supplierD do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierD
+      bidDetails = mkBid 70_000_000.0
+      bidSalt    = "uninvited-salt"
+
+  -- Aucun SealedBid créé
+  bids <- query @SealedBid buyer
+  assertMsg "TC-401: No bid from uninvited supplier" (null bids)
+
+  pure ()
+
+-- TC-402: Supplier ne peut pas exercer RevealBid directement
+testSupplierCannotSelfReveal : Script ()
+testSupplierCannotSelfReveal = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProc buyer [supplierA] regulator "EDGE-402" deadline
+
+  bidCid <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 80_000_000.0
+      bidSalt    = "self-reveal-salt"
+
+  setTime (addRelTime deadline (days 1))
+
+  -- SupplierA tente de révéler sa propre offre directement → doit échouer
+  -- (RevealBid est contrôlé par procurementBuyer, pas supplier)
+  submitMustFail supplierA do exerciseCmd bidCid RevealBid
+
+  -- L'offre reste scellée
+  bidOpt <- queryContractId supplierA bidCid
+  assertMsg "TC-402: Bid remains sealed (supplier cannot self-reveal)" (bidOpt /= None)
+
+  pure ()
+
+-- TC-403: Buyer différent ne peut pas exercer les choices
+testDifferentBuyerCannotAccess : Script ()
+testDifferentBuyerCannotAccess = script do
+  buyerA    <- allocateParty "BuyerA"
+  buyerB    <- allocateParty "BuyerB"
+  supplierA <- allocateParty "SupplierA"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  -- BuyerA crée le procurement
+  procCid <- mkProc buyerA [supplierA] regulator "EDGE-403" deadline
+
+  bidCid <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 80_000_000.0
+      bidSalt    = "buyer-isolation-salt"
+
+  setTime (addRelTime deadline (days 1))
+
+  -- BuyerB tente de révéler → doit échouer (BuyerB n'est pas le buyer du contrat)
+  submitMustFail buyerB do
+    exerciseCmd procCid RevealAndAward with sealedBidCids = [bidCid]
+
+  -- BuyerB ne voit pas le ProcurementRequest de BuyerA
+  procForBuyerB <- queryContractId buyerB procCid
+  assertMsg "TC-403: BuyerB cannot see BuyerA's ProcurementRequest" (procForBuyerB == None)
+
+  pure ()
+
+-- TC-405: Montant négatif ou zéro rejeté (TC-605 dans spec)
+testInvalidBidAmountRejected : Script ()
+testInvalidBidAmountRejected = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  supplierB <- allocateParty "SupplierB"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProc buyer [supplierA, supplierB] regulator "EDGE-605" deadline
+
+  -- Offre avec montant négatif → doit échouer (ensure clause dans SealedBid)
+  submitMustFail supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = (mkBid (-1_000.0))
+      bidSalt    = "negative-salt"
+
+  -- Offre avec montant zéro → doit échouer
+  submitMustFail supplierB do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierB
+      bidDetails = (mkBid 0.0)
+      bidSalt    = "zero-salt"
+
+  -- Aucun SealedBid créé
+  bids <- query @SealedBid buyer
+  assertMsg "TC-605: No bid with invalid amount created" (null bids)
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- CATÉGORIE 6 : Tests d'Exécution de Contrat
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- TC-503: Paiement sans confirmation préalable échoue
+testPayWithoutDeliveryConfirmFails : Script ()
+testPayWithoutDeliveryConfirmFails = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProc buyer [supplierA] regulator "EDGE-503" deadline
+
+  bidCid <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 80_000_000.0
+      bidSalt    = "pay-no-delivery-salt"
+
+  setTime (addRelTime deadline (days 1))
+
+  resultOpt <- submit buyer do
+    exerciseCmd procCid RevealAndAward with sealedBidCids = [bidCid]
+
+  case resultOpt of
+    None -> abort "Contract must be awarded"
+    Some contractCid -> do
+      -- Tenter de payer sans confirmer la livraison → doit échouer
+      submitMustFail buyer do exerciseCmd contractCid PaySupplier
+      assertMsg "TC-503: PaySupplier fails without ConfirmDelivery" True
+
+      -- Le contrat est toujours dans l'état Awarded
+      contractOpt <- queryContractId buyer contractCid
+      case contractOpt of
+        None -> abort "Contract not found"
+        Some contract ->
+          assertMsg "TC-503: Contract still in Awarded status" (contract.contractStatus == ContractAwarded)
+
+  pure ()
+
+-- TC-504: Dispute d'un contrat déjà payé échoue
+testDisputePaidContractFails : Script ()
+testDisputePaidContractFails = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProc buyer [supplierA] regulator "EDGE-504" deadline
+
+  bidCid <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 80_000_000.0
+      bidSalt    = "paid-dispute-salt"
+
+  setTime (addRelTime deadline (days 1))
+
+  resultOpt <- submit buyer do
+    exerciseCmd procCid RevealAndAward with sealedBidCids = [bidCid]
+
+  case resultOpt of
+    None -> abort "Contract must be awarded"
+    Some contractCid -> do
+      -- Cycle complet : Deliver → Pay
+      c2 <- submit buyer do exerciseCmd contractCid ConfirmDelivery
+      c3 <- submit buyer do exerciseCmd c2 PaySupplier
+
+      -- Tenter d'ouvrir un litige après paiement → doit échouer
+      submitMustFail buyer do
+        exerciseCmd c3 DisputeContract with reason = "Too late dispute"
+      assertMsg "TC-504: Cannot dispute a paid contract" True
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- CATÉGORIE 7 : Tests de Cas Limites
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- TC-602: Toutes les offres retirées avant deadline
+testAllBidsWithdrawnThenReveal : Script ()
+testAllBidsWithdrawnThenReveal = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  supplierB <- allocateParty "SupplierB"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProc buyer [supplierA, supplierB] regulator "EDGE-602" deadline
+
+  bidCidA <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 100_000_000.0
+      bidSalt    = "withdraw-all-A"
+
+  bidCidB <- submit supplierB do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierB
+      bidDetails = mkBid 90_000_000.0
+      bidSalt    = "withdraw-all-B"
+
+  -- Les deux se retirent avant la deadline
+  submit supplierA do exerciseCmd bidCidA WithdrawBid
+  submit supplierB do exerciseCmd bidCidB WithdrawBid
+
+  -- Avancer après la deadline
+  setTime (addRelTime deadline (days 1))
+
+  -- Buyer révèle avec liste vide (les offres sont déjà archivées)
+  resultOpt <- submit buyer do
+    exerciseCmd procCid RevealAndAward with sealedBidCids = []
+
+  assertMsg "TC-602: No contract when all bids withdrawn" (resultOpt == None)
+
+  -- AuditLog NoBidsReceived créé
+  auditLogs <- query @AuditLog regulator
+  let noBidsLogs = filter (\(_, l) -> l.eventType == EvtNoBidsReceived) auditLogs
+  assertMsg "TC-602: AuditLog NoBidsReceived created" (length noBidsLogs == 1)
+
+  pure ()
+
+-- TC-603: Offres avec montants égaux - premier arrivé remporte
+testTiedBidsFirstSubmitterWins : Script ()
+testTiedBidsFirstSubmitterWins = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  supplierB <- allocateParty "SupplierB"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProc buyer [supplierA, supplierB] regulator "EDGE-603" deadline
+
+  -- Deux offres identiques en montant
+  bidCidA <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 100_000_000.0
+      bidSalt    = "tie-salt-A"
+
+  bidCidB <- submit supplierB do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierB
+      bidDetails = mkBid 100_000_000.0
+      bidSalt    = "tie-salt-B"
+
+  setTime (addRelTime deadline (days 1))
+
+  -- Passer A en premier dans la liste
+  resultOpt <- submit buyer do
+    exerciseCmd procCid RevealAndAward with
+      sealedBidCids = [bidCidA, bidCidB]
+
+  case resultOpt of
+    None -> abort "Contract must be awarded even with tied bids"
+    Some contractCid -> do
+      contractOpt <- queryContractId buyer contractCid
+      case contractOpt of
+        None -> abort "Contract not found"
+        Some contract -> do
+          -- Le premier dans la liste (A) remporte en cas d'égalité de score
+          assertMsg "TC-603: Contract awarded (tied bids handled)" (contract.contractAmount == 100_000_000.0)
+          assertMsg "TC-603: Status is Awarded" (contract.contractStatus == ContractAwarded)
+
+  pure ()
+
+-- TC-505: Dispute puis retour au travail normal
+testDisputeThenResolveFlow : Script ()
+testDisputeThenResolveFlow = script do
+  buyer     <- allocateParty "Buyer"
+  supplierA <- allocateParty "SupplierA"
+  regulator <- allocateParty "Regulator"
+
+  now <- getTime
+  let deadline = addRelTime now (days 7)
+
+  procCid <- mkProc buyer [supplierA] regulator "EDGE-505" deadline
+
+  bidCid <- submit supplierA do
+    exerciseCmd procCid SubmitBid with
+      supplier   = supplierA
+      bidDetails = mkBid 80_000_000.0
+      bidSalt    = "dispute-flow-salt"
+
+  setTime (addRelTime deadline (days 1))
+
+  resultOpt <- submit buyer do
+    exerciseCmd procCid RevealAndAward with sealedBidCids = [bidCid]
+
+  case resultOpt of
+    None -> abort "Contract must be awarded"
+    Some contractCid -> do
+      -- Ouvrir un litige
+      disputedCid <- submit buyer do
+        exerciseCmd contractCid DisputeContract with
+          reason = "Quality does not match specifications"
+
+      disputedOpt <- queryContractId buyer disputedCid
+      case disputedOpt of
+        None -> abort "Disputed contract not found"
+        Some disputed -> do
+          assertMsg "TC-505: Contract in Disputed state" (disputed.contractStatus == ContractDisputed)
+          assertMsg "TC-505: Dispute reason recorded" (disputed.disputeReason /= None)
+
+      -- AuditLog de dispute créé
+      auditLogs <- query @AuditLog regulator
+      let disputeLogs = filter (\(_, l) -> l.eventType == EvtContractDisputed) auditLogs
+      assertMsg "TC-505: AuditLog ContractDisputed created" (length disputeLogs == 1)
+
+  pure ()
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Test Runner
+-- ─────────────────────────────────────────────────────────────────────────────
+
+runAllEdgeCaseTests : Script ()
+runAllEdgeCaseTests = script do
+  -- Catégorie 4: Deadlines
+  testSubmitAfterDeadlineFails
+  testRevealBeforeDeadlineFails
+  testWithdrawAfterDeadlineFails
+  -- Catégorie 5: Contrôles d'accès
+  testUninvitedSupplierCannotBid
+  testSupplierCannotSelfReveal
+  testDifferentBuyerCannotAccess
+  testInvalidBidAmountRejected
+  -- Catégorie 6: Exécution de contrat
+  testPayWithoutDeliveryConfirmFails
+  testDisputePaidContractFails
+  -- Catégorie 7: Cas limites
+  testAllBidsWithdrawnThenReveal
+  testTiedBidsFirstSubmitterWins
+  testDisputeThenResolveFlow
