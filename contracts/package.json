@@ -1,0 +1,24 @@
+{
+  "name": "shadowbid-contracts",
+  "version": "1.0.0",
+  "description": "ShadowBid v2.0 Smart Contracts — ADI Chain + 0G Chain",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:adi": "hardhat deploy-zksync --script deploy-adi.ts --network adiTestnet",
+    "deploy:zerog": "hardhat run scripts/deploy-zerog.ts --network zerogTestnet"
+  },
+  "devDependencies": {
+    "hardhat": "^2.22.0",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@matterlabs/hardhat-zksync": "^1.2.0",
+    "@matterlabs/hardhat-zksync-deploy": "^1.5.0",
+    "typescript": "^5.4.0",
+    "ts-node": "^10.9.0",
+    "@types/node": "^20.0.0",
+    "dotenv": "^16.4.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0"
+  }
+}
