@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build",
+    "build": "prisma generate && next build",
     "check-types": "tsc --noEmit --incremental --skipLibCheck 2>&1 | grep -v 'node_modules/' | grep -q 'error TS' && tsc --noEmit --incremental --skipLibCheck 2>&1 | grep -v 'node_modules/' || true",
     "dev": "NODE_OPTIONS='--max-old-space-size=3072' next dev --turbopack",
     "dev:verbose": "NODE_OPTIONS='--max-old-space-size=3072' next dev --turbopack --verbose",
