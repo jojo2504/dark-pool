@@ -1,5 +1,5 @@
 {
-  "plugins": ["prettier-plugin-solidity"],
+  "plugins": ["./node_modules/prettier-plugin-solidity/src/index.js"],
   "arrowParens": "avoid",
   "printWidth": 120,
   "tabWidth": 2,

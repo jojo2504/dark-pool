@@ -1,4 +1,5 @@
 # Dark Pool — Complete Security & Compliance Implementation Prompt
+
 # Scaffold-ETH 2 + ADI Chain + Institutional RWA Sealed-Bid Auctions
 
 ---
@@ -12,6 +13,7 @@ on ADI Chain (EVM-compatible, Abu Dhabi institutional blockchain backed by IHC,
 licensed by UAE Central Bank).
 
 **Current state of the repo:**
+
 - Working commit-reveal mechanism for bid privacy during auction
 - ETH deposit forfeiture on non-reveal
 - Sniping protection (anti-snipe time extension)
@@ -20,6 +22,7 @@ licensed by UAE Central Bank).
 - Deterministic winner selection
 
 **Stack:**
+
 - `packages/hardhat/contracts/` — Solidity smart contracts
 - `packages/hardhat/deploy/` — Hardhat deploy scripts
 - `packages/nextjs/app/` — NextJS App Router frontend
@@ -31,6 +34,7 @@ licensed by UAE Central Bank).
 ---
 
 ## PART 1 — SMART CONTRACT CHANGES
+
 ### File: `packages/hardhat/contracts/ShadowBidVault.sol`
 
 ### 1.1 New State Variables to Add
@@ -371,6 +375,7 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
 ```
 
 Add to `packages/hardhat/package.json`:
+
 ```json
 "@openzeppelin/contracts": "^5.0.0"
 ```
@@ -378,9 +383,11 @@ Add to `packages/hardhat/package.json`:
 ---
 
 ## PART 2 — KYB BACKEND
+
 ### Files: `packages/nextjs/app/api/kyb/`
 
 ### 2.1 Environment Variables
+
 Add to `packages/nextjs/.env.local`:
 
 ```env
@@ -411,6 +418,7 @@ SUMSUB_WEBHOOK_SECRET=your_webhook_secret
 ---
 
 ### 2.2 Sumsub Client
+
 ### File: `packages/nextjs/lib/sumsub.ts`
 
 ```typescript
@@ -424,7 +432,7 @@ function createSignature(
   method: string,
   url: string,
   body: string | null,
-  ts: number
+  ts: number,
 ): string {
   const data = ts + method.toUpperCase() + url + (body || "");
   return crypto
@@ -437,11 +445,10 @@ async function sumsubRequest(
   method: string,
   endpoint: string,
   body?: object | FormData,
-  isFormData = false
+  isFormData = false,
 ): Promise<Response> {
   const ts = Math.floor(Date.now() / 1000);
-  const bodyStr =
-    body && !isFormData ? JSON.stringify(body) : null;
+  const bodyStr = body && !isFormData ? JSON.stringify(body) : null;
 
   const sig = createSignature(method, endpoint, bodyStr, ts);
 
@@ -461,14 +468,14 @@ async function sumsubRequest(
     body: isFormData
       ? (body as FormData)
       : body
-      ? JSON.stringify(body)
-      : undefined,
+        ? JSON.stringify(body)
+        : undefined,
   });
 }
 
 export async function createApplicant(
   externalUserId: string, // your internal institution ID
-  levelName = "business-kyb"
+  levelName = "business-kyb",
 ) {
   const res = await sumsubRequest("POST", "/resources/applicants", {
     externalUserId,
@@ -480,7 +487,7 @@ export async function createApplicant(
 export async function getApplicantStatus(applicantId: string) {
   const res = await sumsubRequest(
     "GET",
-    `/resources/applicants/${applicantId}/requiredIdDocsStatus`
+    `/resources/applicants/${applicantId}/requiredIdDocsStatus`,
   );
   return res.json();
 }
@@ -488,18 +495,18 @@ export async function getApplicantStatus(applicantId: string) {
 export async function generateAccessToken(
   externalUserId: string,
   levelName = "business-kyb",
-  ttlInSecs = 3600
+  ttlInSecs = 3600,
 ) {
   const res = await sumsubRequest(
     "POST",
-    `/resources/accessTokens?userId=${externalUserId}&levelName=${levelName}&ttlInSecs=${ttlInSecs}`
+    `/resources/accessTokens?userId=${externalUserId}&levelName=${levelName}&ttlInSecs=${ttlInSecs}`,
   );
   return res.json();
 }
 
 export async function verifyWebhookSignature(
   payload: string,
-  receivedSig: string
+  receivedSig: string,
 ): Promise<boolean> {
   const expectedSig = crypto
     .createHmac("sha256", process.env.SUMSUB_WEBHOOK_SECRET!)
@@ -507,7 +514,7 @@ export async function verifyWebhookSignature(
     .digest("hex");
   return crypto.timingSafeEqual(
     Buffer.from(expectedSig),
-    Buffer.from(receivedSig)
+    Buffer.from(receivedSig),
   );
 }
 ```
@@ -515,6 +522,7 @@ export async function verifyWebhookSignature(
 ---
 
 ### 2.3 Sanctions Screening Client
+
 ### File: `packages/nextjs/lib/sanctions.ts`
 
 ```typescript
@@ -532,27 +540,24 @@ export async function screenEntity(params: {
   searchId: string;
   details: object;
 }> {
-  const res = await fetch(
-    "https://api.complyadvantage.com/searches",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Token ${process.env.COMPLY_ADVANTAGE_API_KEY}`,
+  const res = await fetch("https://api.complyadvantage.com/searches", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Token ${process.env.COMPLY_ADVANTAGE_API_KEY}`,
+    },
+    body: JSON.stringify({
+      search_term: params.entityName,
+      client_ref: params.registrationNumber,
+      fuzziness: 0.6,
+      filters: {
+        types: ["sanction", "warning", "pep", "adverse-media"],
+        entity_type: "company",
+        countries: [params.countryOfIncorporation],
       },
-      body: JSON.stringify({
-        search_term: params.entityName,
-        client_ref: params.registrationNumber,
-        fuzziness: 0.6,
-        filters: {
-          types: ["sanction", "warning", "pep", "adverse-media"],
-          entity_type: "company",
-          countries: [params.countryOfIncorporation],
-        },
-        tags: ["dark-pool-kyb"],
-      }),
-    }
-  );
+      tags: ["dark-pool-kyb"],
+    }),
+  });
 
   const data = await res.json();
   const matchCount = data.content?.data?.total_hits ?? 0;
@@ -567,7 +572,12 @@ export async function screenEntity(params: {
 
 // Re-screen on a schedule (call this from a cron job)
 export async function rescreenAllInstitutions(
-  institutions: Array<{ id: string; entityName: string; countryOfIncorporation: string; registrationNumber: string }>
+  institutions: Array<{
+    id: string;
+    entityName: string;
+    countryOfIncorporation: string;
+    registrationNumber: string;
+  }>,
 ) {
   const results = [];
   for (const inst of institutions) {
@@ -586,6 +596,7 @@ export async function rescreenAllInstitutions(
 ---
 
 ### 2.4 On-Chain Credential Issuer
+
 ### File: `packages/nextjs/lib/onchain-credentials.ts`
 
 ```typescript
@@ -593,7 +604,7 @@ import { createWalletClient, createPublicClient, http, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
 const account = privateKeyToAccount(
-  process.env.PLATFORM_ADMIN_PRIVATE_KEY as `0x${string}`
+  process.env.PLATFORM_ADMIN_PRIVATE_KEY as `0x${string}`,
 );
 
 const walletClient = createWalletClient({
@@ -613,13 +624,14 @@ const VAULT_FACTORY_ABI = parseAbi([
 // Signs the EIP-712 credential that the smart contract will verify
 export async function signVerificationCredential(
   institutionAddress: `0x${string}`,
-  isAccredited: boolean
+  isAccredited: boolean,
 ): Promise<`0x${string}`> {
   const domain = {
     name: "DarkPool",
     version: "1",
     chainId: BigInt(process.env.ADI_CHAIN_ID ?? "1"),
-    verifyingContract: process.env.SHADOW_BID_VAULT_FACTORY_ADDRESS as `0x${string}`,
+    verifyingContract: process.env
+      .SHADOW_BID_VAULT_FACTORY_ADDRESS as `0x${string}`,
   };
 
   const types = {
@@ -654,9 +666,12 @@ export async function signVerificationCredential(
 export async function verifyInstitutionOnChain(
   vaultFactoryAddress: `0x${string}`,
   institutionAddress: `0x${string}`,
-  isAccredited: boolean
+  isAccredited: boolean,
 ): Promise<`0x${string}`> {
-  const sig = await signVerificationCredential(institutionAddress, isAccredited);
+  const sig = await signVerificationCredential(
+    institutionAddress,
+    isAccredited,
+  );
 
   const txHash = await walletClient.writeContract({
     address: vaultFactoryAddress,
@@ -674,7 +689,7 @@ export async function verifyInstitutionOnChain(
 // Revokes on-chain verification (triggered by re-screening hitting a sanction)
 export async function revokeInstitutionOnChain(
   vaultFactoryAddress: `0x${string}`,
-  institutionAddress: `0x${string}`
+  institutionAddress: `0x${string}`,
 ): Promise<`0x${string}`> {
   const txHash = await walletClient.writeContract({
     address: vaultFactoryAddress,
@@ -691,6 +706,7 @@ export async function revokeInstitutionOnChain(
 ---
 
 ### 2.5 KYB Submission Route
+
 ### File: `packages/nextjs/app/api/kyb/submit/route.ts`
 
 ```typescript
@@ -716,7 +732,7 @@ export async function POST(req: NextRequest) {
     if (!walletAddress || !entityName || !registrationNumber || !ubos?.length) {
       return NextResponse.json(
         { error: "Missing required fields" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -725,10 +741,7 @@ export async function POST(req: NextRequest) {
       where: { walletAddress: walletAddress.toLowerCase() },
     });
     if (existing?.status === "verified") {
-      return NextResponse.json(
-        { error: "Already verified" },
-        { status: 409 }
-      );
+      return NextResponse.json({ error: "Already verified" }, { status: 409 });
     }
 
     // 3. Initial sanctions screening
@@ -761,7 +774,7 @@ export async function POST(req: NextRequest) {
       });
       return NextResponse.json(
         { error: "Entity failed sanctions screening" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -803,7 +816,7 @@ export async function POST(req: NextRequest) {
     console.error("[KYB Submit]", err);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -812,12 +825,16 @@ export async function POST(req: NextRequest) {
 ---
 
 ### 2.6 Sumsub Webhook Handler (triggers on-chain verification)
+
 ### File: `packages/nextjs/app/api/kyb/webhook/route.ts`
 
 ```typescript
 import { NextRequest, NextResponse } from "next/server";
 import { verifyWebhookSignature } from "@/lib/sumsub";
-import { verifyInstitutionOnChain, revokeInstitutionOnChain } from "@/lib/onchain-credentials";
+import {
+  verifyInstitutionOnChain,
+  revokeInstitutionOnChain,
+} from "@/lib/onchain-credentials";
 import { db } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
@@ -841,7 +858,10 @@ export async function POST(req: NextRequest) {
     });
 
     if (!institution) {
-      return NextResponse.json({ error: "Institution not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Institution not found" },
+        { status: 404 },
+      );
     }
 
     // 3. Handle different webhook types
@@ -855,7 +875,7 @@ export async function POST(req: NextRequest) {
         const txHash = await verifyInstitutionOnChain(
           process.env.SHADOW_BID_VAULT_FACTORY_ADDRESS as `0x${string}`,
           institution.walletAddress as `0x${string}`,
-          institution.isAccreditedInvestor
+          institution.isAccreditedInvestor,
         );
 
         await db.institution.update({
@@ -868,7 +888,6 @@ export async function POST(req: NextRequest) {
         });
 
         // TODO: send email notification to institution
-
       } else if (reviewAnswer === "RED") {
         // KYB FAILED
         const rejectLabels = reviewResult?.rejectLabels ?? [];
@@ -893,7 +912,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true });
   } catch (err) {
     console.error("[KYB Webhook]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 ```
@@ -901,6 +923,7 @@ export async function POST(req: NextRequest) {
 ---
 
 ### 2.7 KYB Status Route
+
 ### File: `packages/nextjs/app/api/kyb/status/route.ts`
 
 ```typescript
@@ -938,6 +961,7 @@ export async function GET(req: NextRequest) {
 ---
 
 ### 2.8 Sanctions Re-Screening Cron Job
+
 ### File: `packages/nextjs/app/api/cron/rescreen/route.ts`
 
 ```typescript
@@ -973,7 +997,7 @@ export async function GET(req: NextRequest) {
       // NEW sanction hit — revoke immediately
       await revokeInstitutionOnChain(
         process.env.SHADOW_BID_VAULT_FACTORY_ADDRESS as `0x${string}`,
-        inst.walletAddress as `0x${string}`
+        inst.walletAddress as `0x${string}`,
       );
 
       await db.institution.update({
@@ -998,6 +1022,7 @@ export async function GET(req: NextRequest) {
 ---
 
 ### 2.9 Database Schema (Prisma)
+
 ### File: `packages/nextjs/prisma/schema.prisma`
 
 ```prisma
@@ -1032,9 +1057,11 @@ model Institution {
 ---
 
 ## PART 3 — FRONTEND ADDITIONS
+
 ### Files: `packages/nextjs/app/`
 
 ### 3.1 Sumsub WebSDK Integration
+
 ### File: `packages/nextjs/app/kyb/page.tsx`
 
 ```typescript
@@ -1065,10 +1092,17 @@ import SumsubWebSdk from "@sumsub/websdk-react";
 ```
 
 ### 3.2 Verification Status Badge
+
 Add to wallet connect component — poll `/api/kyb/status?address={walletAddress}`:
 
 ```typescript
-type KYBStatus = "not_found" | "pending" | "under_review" | "verified" | "rejected" | "suspended";
+type KYBStatus =
+  | "not_found"
+  | "pending"
+  | "under_review"
+  | "verified"
+  | "rejected"
+  | "suspended";
 
 const statusColors: Record<KYBStatus, string> = {
   not_found: "gray",
@@ -1081,6 +1115,7 @@ const statusColors: Record<KYBStatus, string> = {
 ```
 
 ### 3.3 Conflict Attestation UI
+
 Before `commitBid()` is callable, show an attestation modal where the user signs:
 
 ```typescript
@@ -1097,7 +1132,8 @@ const conflictMessage = {
   message: {
     bidder: address,
     vault: vaultAddress,
-    statement: "I confirm I am not affiliated with the auction creator and have no conflict of interest.",
+    statement:
+      "I confirm I am not affiliated with the auction creator and have no conflict of interest.",
     timestamp: BigInt(Math.floor(Date.now() / 1000)),
   },
 };
@@ -1109,6 +1145,7 @@ const sig = await walletClient.signTypedData(conflictMessage);
 ---
 
 ## PART 4 — MEV PROTECTION
+
 ### File: `packages/nextjs/scaffold.config.ts`
 
 ```typescript
@@ -1177,27 +1214,27 @@ etherscan: {
 
 ## COMPLETE EXTERNAL PARTIES SUMMARY
 
-| Party | Role | Integration Point |
-|---|---|---|
-| **Sumsub** | KYB document verification + UBO checks | `/api/kyb/submit`, `/api/kyb/webhook`, WebSDK |
-| **Comply Advantage** | Sanctions screening (OFAC, UN, EU, UAE CB) | `/lib/sanctions.ts`, daily cron |
-| **Platform Admin Wallet** | Signs EIP-712 credentials, triggers on-chain verification | `/lib/onchain-credentials.ts` |
-| **Oracle** | Confirms real-world asset delivery | `confirmDelivery()` on ShadowBidVault |
-| **ADI Chain** | Deployment target, native compliance, DDSC stablecoin | `hardhat.config.ts`, `scaffold.config.ts` |
-| **DDSC** | Dirham-backed stablecoin for settlement | `settlementToken` in vault, `IERC20` interface |
-| **OpenZeppelin** | ReentrancyGuard, Pausable, ECDSA, EIP712, AccessControl | Contract imports |
-| **Flashbots Protect** | MEV/front-running protection for bid commits | `scaffold.config.ts` RPC override |
-| **Prisma + Postgres** | Store KYB state, verification records, audit trail | `prisma/schema.prisma` |
+| Party                     | Role                                                      | Integration Point                              |
+| ------------------------- | --------------------------------------------------------- | ---------------------------------------------- |
+| **Sumsub**                | KYB document verification + UBO checks                    | `/api/kyb/submit`, `/api/kyb/webhook`, WebSDK  |
+| **Comply Advantage**      | Sanctions screening (OFAC, UN, EU, UAE CB)                | `/lib/sanctions.ts`, daily cron                |
+| **Platform Admin Wallet** | Signs EIP-712 credentials, triggers on-chain verification | `/lib/onchain-credentials.ts`                  |
+| **Oracle**                | Confirms real-world asset delivery                        | `confirmDelivery()` on ShadowBidVault          |
+| **ADI Chain**             | Deployment target, native compliance, DDSC stablecoin     | `hardhat.config.ts`, `scaffold.config.ts`      |
+| **DDSC**                  | Dirham-backed stablecoin for settlement                   | `settlementToken` in vault, `IERC20` interface |
+| **OpenZeppelin**          | ReentrancyGuard, Pausable, ECDSA, EIP712, AccessControl   | Contract imports                               |
+| **Flashbots Protect**     | MEV/front-running protection for bid commits              | `scaffold.config.ts` RPC override              |
+| **Prisma + Postgres**     | Store KYB state, verification records, audit trail        | `prisma/schema.prisma`                         |
 
 ## COMPLETE INTERNAL PARTIES SUMMARY
 
-| Party | Role | Where Defined |
-|---|---|---|
-| **Creator** | Opens auction, posts bond, delivers asset | ShadowBidVault constructor |
-| **Bidder** | Commits sealed bid + deposit, reveals, pays if winner | `commitBid()`, `revealBid()`, `submitPayment()` |
-| **Second Bidder** | Fallback if winner defaults | Tracked in `revealBid()`, activated in `claimBuyerDefault()` |
-| **Platform Admin** | KYB approver, emergency pause, bond slasher | `onlyAdmin` modifier |
-| **Oracle** | Real-world delivery confirmation | `onlyOracle` modifier, `confirmDelivery()` |
+| Party              | Role                                                  | Where Defined                                                |
+| ------------------ | ----------------------------------------------------- | ------------------------------------------------------------ |
+| **Creator**        | Opens auction, posts bond, delivers asset             | ShadowBidVault constructor                                   |
+| **Bidder**         | Commits sealed bid + deposit, reveals, pays if winner | `commitBid()`, `revealBid()`, `submitPayment()`              |
+| **Second Bidder**  | Fallback if winner defaults                           | Tracked in `revealBid()`, activated in `claimBuyerDefault()` |
+| **Platform Admin** | KYB approver, emergency pause, bond slasher           | `onlyAdmin` modifier                                         |
+| **Oracle**         | Real-world delivery confirmation                      | `onlyOracle` modifier, `confirmDelivery()`                   |
 
 ---
 

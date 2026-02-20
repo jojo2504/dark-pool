@@ -131,20 +131,20 @@ contract ShadowBidFactory is AccessControl {
         require(_revealWindow >= 3600, "revealWindow must be >= 1h");
         require(_allowedSuppliers.length >= 1, "At least 1 supplier required");
 
-        ShadowBidVault vault = new ShadowBidVault{value: msg.value}(
-            address(this),      // factory (KYB oracle)
-            msg.sender,         // platformAdmin = deployer EOA who created this vault
+        ShadowBidVault vault = new ShadowBidVault{ value: msg.value }(
+            address(this), // factory (KYB oracle)
+            msg.sender, // platformAdmin = deployer EOA who created this vault
             _oracle,
             _assetProofHash,
             _declaredAssetValue,
-            address(0),         // no tokenized asset (can add later)
+            address(0), // no tokenized asset (can add later)
             0,
             _requiresAccreditation,
             _allowedJurisdictions,
             _settlementToken,
             _settlementWindow,
             _oracleTimeout,
-            msg.sender,         // buyer = vault creator
+            msg.sender, // buyer = vault creator
             _title,
             _description,
             _closeTime,

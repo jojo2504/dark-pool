@@ -411,7 +411,12 @@ contract SecurityChecklist {
 // Hardhat test example
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { SecureBank, ReentrancyAttacker, SecureToken, SecureContract } from "../typechain-types";
+import {
+  SecureBank,
+  ReentrancyAttacker,
+  SecureToken,
+  SecureContract,
+} from "../typechain-types";
 
 describe("Security Tests", function () {
   describe("Reentrancy Protection", function () {
@@ -426,7 +431,9 @@ describe("Security Tests", function () {
       await bank.waitForDeployment();
 
       const Attacker = await ethers.getContractFactory("ReentrancyAttacker");
-      attackerContract = (await Attacker.deploy(await bank.getAddress())) as ReentrancyAttacker;
+      attackerContract = (await Attacker.deploy(
+        await bank.getAddress(),
+      )) as ReentrancyAttacker;
       await attackerContract.waitForDeployment();
     });
 
@@ -454,8 +461,8 @@ describe("Security Tests", function () {
       const [, attacker] = await ethers.getSigners();
 
       // Attempt overflow
-      await expect(token.transfer(attacker.address, ethers.MaxUint256))
-        .to.be.reverted;
+      await expect(token.transfer(attacker.address, ethers.MaxUint256)).to.be
+        .reverted;
     });
   });
 

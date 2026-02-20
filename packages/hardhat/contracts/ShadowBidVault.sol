@@ -78,7 +78,12 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
     bool public assetTokenEscrowed;
 
     // ─── Auction State ────────────────────────────────────────────────────────
-    enum Phase { OPEN, REVEAL, SETTLED, CANCELLED }
+    enum Phase {
+        OPEN,
+        REVEAL,
+        SETTLED,
+        CANCELLED
+    }
     Phase public phase;
 
     struct Bid {
@@ -239,7 +244,11 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
                     CONFLICT_ATTESTATION_TYPEHASH,
                     msg.sender,
                     address(this),
-                    keccak256(bytes("I confirm I am not affiliated with the auction creator and have no conflict of interest.")),
+                    keccak256(
+                        bytes(
+                            "I confirm I am not affiliated with the auction creator and have no conflict of interest."
+                        )
+                    ),
                     timestamp
                 )
             )
@@ -252,9 +261,10 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
 
     // ─── Phase OPEN: Commit ───────────────────────────────────────────────────
 
-    function commitBid(bytes32 _commitHash, string calldata _storageRoot)
-        external payable notPaused biddingOpen onlyVerified onlyAccreditedIfRequired nonReentrant
-    {
+    function commitBid(
+        bytes32 _commitHash,
+        string calldata _storageRoot
+    ) external payable notPaused biddingOpen onlyVerified onlyAccreditedIfRequired nonReentrant {
         require(isAllowedSupplier[msg.sender], "Not a whitelisted supplier");
         require(msg.sender != buyer, "Auction creator cannot bid");
         require(factory.affiliatedWith(msg.sender) != buyer, "Affiliated address cannot bid");
@@ -528,8 +538,12 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
 
     // ─── Admin ────────────────────────────────────────────────────────────────
 
-    function pause() external onlyAdmin { paused = true; }
-    function unpause() external onlyAdmin { paused = false; }
+    function pause() external onlyAdmin {
+        paused = true;
+    }
+    function unpause() external onlyAdmin {
+        paused = false;
+    }
 
     function updateOracle(address newOracle) external onlyAdmin {
         oracle = newOracle;
@@ -567,13 +581,17 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
 
     // ─── Audit ────────────────────────────────────────────────────────────────
 
-    function getAuditData() external view returns (
-        address[] memory _suppliers,
-        bytes32[] memory _hashes,
-        string[] memory _storageRoots,
-        uint256[] memory _prices,
-        bool[] memory _revealed
-    ) {
+    function getAuditData()
+        external
+        view
+        returns (
+            address[] memory _suppliers,
+            bytes32[] memory _hashes,
+            string[] memory _storageRoots,
+            uint256[] memory _prices,
+            bool[] memory _revealed
+        )
+    {
         uint256 n = suppliers.length;
         _suppliers = suppliers;
         _hashes = new bytes32[](n);
@@ -591,8 +609,12 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
 
     // ─── View Helpers ─────────────────────────────────────────────────────────
 
-    function getSuppliers() external view returns (address[] memory) { return suppliers; }
-    function getBidCount() external view returns (uint256) { return suppliers.length; }
+    function getSuppliers() external view returns (address[] memory) {
+        return suppliers;
+    }
+    function getBidCount() external view returns (uint256) {
+        return suppliers.length;
+    }
 
     function getCurrentPhase() external view returns (Phase) {
         if (phase == Phase.OPEN && block.timestamp >= closeTime) return Phase.REVEAL;
