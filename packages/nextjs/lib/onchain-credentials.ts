@@ -33,6 +33,7 @@ function getFactoryAddress(): `0x${string}` {
 export async function onChainVerifyInstitution(
   walletAddress: `0x${string}`,
   isAccredited: boolean,
+  jurisdiction = "",
 ): Promise<`0x${string}`> {
   const account = getAdminAccount();
   const factoryAddress = getFactoryAddress();
@@ -47,7 +48,7 @@ export async function onChainVerifyInstitution(
     address: factoryAddress,
     abi: FACTORY_ABI,
     functionName: "verifyInstitution",
-    args: [walletAddress, isAccredited, "0x" as `0x${string}`],
+    args: [walletAddress, isAccredited, jurisdiction, "0x" as `0x${string}`],
   });
 
   return hash;

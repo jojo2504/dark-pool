@@ -25,6 +25,7 @@ contract ShadowBidFactory is AccessControl {
     mapping(address => bool) public verified;
     mapping(address => bool) public isAccredited;
     mapping(address => address) public affiliatedWith;
+    mapping(address => string) public institutionJurisdiction;
 
     // ─── Vault Registry ───────────────────────────────────────────────────────
     address[] public allVaults;
@@ -53,16 +54,19 @@ contract ShadowBidFactory is AccessControl {
     /**
      * @notice Mark an institution as KYB-verified after off-chain Sumsub review.
      *         Called by the platform compliance team after review approval.
-     * @param inst       Institution wallet address
-     * @param accredited Whether the institution qualifies as an accredited investor
+     * @param inst         Institution wallet address
+     * @param accredited   Whether the institution qualifies as an accredited investor
+     * @param _jurisdiction ISO-3166 jurisdiction code (e.g. "UAE", "GB", "SG")
      */
     function verifyInstitution(
         address inst,
         bool accredited,
+        string calldata _jurisdiction,
         bytes calldata /* sig — stored off-chain for audit; on-chain authority is ADMIN_ROLE */
     ) external onlyRole(ADMIN_ROLE) {
         verified[inst] = true;
         isAccredited[inst] = accredited;
+        institutionJurisdiction[inst] = _jurisdiction;
         emit InstitutionVerified(inst, accredited);
     }
 

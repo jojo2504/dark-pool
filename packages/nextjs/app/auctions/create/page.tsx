@@ -10,7 +10,7 @@ import { keccak256, parseEther, toBytes, zeroAddress } from "viem";
 import { useAccount, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { z } from "zod";
 import { FACTORY_ABI } from "~~/lib/contracts";
-import { FACTORY_ADDRESS } from "~~/lib/darkpool-config";
+import { DDSC_ADDRESS, FACTORY_ADDRESS, SETTLEMENT_TOKENS } from "~~/lib/darkpool-config";
 
 const schema = z.object({
   title: z.string().min(5).max(80),
@@ -29,6 +29,8 @@ const schema = z.object({
   requiresAccreditation: z.boolean().default(false),
   allowedJurisdictionsRaw: z.string().optional(),
   reviewWindowHours: z.coerce.number().min(0).default(0),
+  // Settlement currency
+  settlementTokenKey: z.enum(["ETH", "DDSC"]).default("ETH"),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -74,10 +76,12 @@ export default function CreateAuctionPage() {
       oracleTimeoutDays: 30,
       reviewWindowHours: 0,
       requiresAccreditation: false,
+      settlementTokenKey: "ETH",
     },
   });
 
   const watchedDeclaredValue = watch("declaredAssetValueEth") ?? "";
+  const watchedSettlementKey = watch("settlementTokenKey");
   const bondAmount = computeBond(watchedDeclaredValue);
 
   const onSubmit = (data: FormData) => {
@@ -123,6 +127,10 @@ export default function CreateAuctionPage() {
 
       const creatorBond = computeBond(pendingData.declaredAssetValueEth ?? "");
 
+      const settlementTokenAddress = (
+        pendingData.settlementTokenKey === "DDSC" ? DDSC_ADDRESS : zeroAddress
+      ) as `0x${string}`;
+
       const hash = await writeContractAsync({
         address: FACTORY_ADDRESS,
         abi: FACTORY_ABI,
@@ -141,7 +149,7 @@ export default function CreateAuctionPage() {
           oracleTimeout,
           pendingData.requiresAccreditation,
           jurisdictions,
-          zeroAddress, // settlementToken = ETH
+          settlementTokenAddress,
           declaredAssetValue,
           reviewWindow,
         ],
@@ -226,6 +234,10 @@ export default function CreateAuctionPage() {
                 <div className="flex justify-between p-3">
                   <span className="opacity-40">ACCREDITATION</span>
                   <span>{pendingData.requiresAccreditation ? "REQUIRED" : "NOT REQUIRED"}</span>
+                </div>
+                <div className="flex justify-between p-3">
+                  <span className="opacity-40">SETTLEMENT</span>
+                  <span>{pendingData.settlementTokenKey === "DDSC" ? "DDSC (AED)" : "ETH (NATIVE)"}</span>
                 </div>
               </div>
 
@@ -499,6 +511,28 @@ export default function CreateAuctionPage() {
                     <p className="font-mono text-[9px] opacity-30 mt-1">MAX DAYS FOR ORACLE TO CONFIRM DELIVERY</p>
                   </div>
                 </div>
+
+                {/* Settlement Currency Selector */}
+                <div className="mt-6">
+                  <label className={labelClass}>SETTLEMENT CURRENCY</label>
+                  <div className="flex">
+                    {Object.entries(SETTLEMENT_TOKENS).map(([key, { label }]) => (
+                      <label
+                        key={key}
+                        className={`flex-1 flex items-center gap-3 px-4 py-3 border border-white cursor-pointer font-mono text-xs transition-all duration-100 ${
+                          watchedSettlementKey === key ? "bg-white text-black" : "hover:opacity-80"
+                        } ${key !== "ETH" ? "border-l-0" : ""}`}
+                      >
+                        <input type="radio" value={key} {...register("settlementTokenKey")} className="sr-only" />
+                        <span className="uppercase tracking-[0.1em]">{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="font-mono text-[9px] opacity-30 mt-1">
+                    DDSC = UAE CENTRAL BANK-LICENSED AED STABLECOIN ON ADI CHAIN · ELIMINATES ETH PRICE RISK
+                  </p>
+                </div>
+
                 <div className="mt-6 p-4 border border-white/20 bg-white/5">
                   <p className="font-mono text-[10px] uppercase opacity-50 mb-3">SETTLEMENT FLOW</p>
                   <div className="space-y-1 font-mono text-[10px] opacity-40">

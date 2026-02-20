@@ -11,6 +11,7 @@ interface IShadowBidFactory {
     function verified(address) external view returns (bool);
     function isAccredited(address) external view returns (bool);
     function affiliatedWith(address) external view returns (address);
+    function institutionJurisdiction(address) external view returns (string memory);
 }
 
 /**
@@ -257,6 +258,17 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
         require(isAllowedSupplier[msg.sender], "Not a whitelisted supplier");
         require(msg.sender != buyer, "Auction creator cannot bid");
         require(factory.affiliatedWith(msg.sender) != buyer, "Affiliated address cannot bid");
+        if (allowedJurisdictions.length > 0) {
+            string memory bidderJurisdiction = factory.institutionJurisdiction(msg.sender);
+            bool jurisdictionAllowed = false;
+            for (uint256 i = 0; i < allowedJurisdictions.length; i++) {
+                if (keccak256(bytes(bidderJurisdiction)) == keccak256(bytes(allowedJurisdictions[i]))) {
+                    jurisdictionAllowed = true;
+                    break;
+                }
+            }
+            require(jurisdictionAllowed, "Bidder jurisdiction not in allowedJurisdictions");
+        }
         require(conflictAttestationSubmitted[msg.sender], "Conflict attestation required");
         require(phase == Phase.OPEN, "Not in OPEN phase");
         require(msg.value == depositRequired, "Incorrect deposit amount");
@@ -363,6 +375,10 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
             address s = suppliers[i];
             Bid storage bid = bids[s];
             if (bid.revealed && !bid.depositReturned) {
+                if (s == bestSupplier) {
+                    // Winner's deposit is held: released on submitPayment or slashed on claimBuyerDefault
+                    continue;
+                }
                 bid.depositReturned = true;
                 (bool ok, ) = payable(s).call{ value: depositRequired }("");
                 require(ok, "Deposit refund failed");
@@ -388,6 +404,15 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
         }
 
         paymentSubmitted = true;
+
+        // Return winner's deposit — they fulfilled the payment obligation
+        if (bids[winner].depositPaid && !bids[winner].depositReturned) {
+            bids[winner].depositReturned = true;
+            (bool ok, ) = payable(winner).call{ value: depositRequired }("");
+            require(ok, "Deposit return failed");
+            emit DepositReturned(winner, depositRequired);
+        }
+
         emit PaymentSubmitted(msg.sender, winningBidAmount);
     }
 
@@ -450,11 +475,20 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
 
     // ─── Buyer Default ────────────────────────────────────────────────────────
 
-    function claimBuyerDefault() external onlyBuyer {
+    function claimBuyerDefault() external onlyBuyer nonReentrant {
         require(!paymentSubmitted, "Payment was submitted");
         require(block.timestamp > settlementDeadline, "Settlement window still open");
         require(phase == Phase.SETTLED, "Not settled");
-        emit DepositSlashed(winner, 0, buyer);
+
+        // Slash winner's held deposit to seller as default penalty
+        address defaultedWinner = winner;
+        if (bids[defaultedWinner].depositPaid && !bids[defaultedWinner].depositReturned) {
+            bids[defaultedWinner].depositReturned = true;
+            (bool ok, ) = payable(buyer).call{ value: depositRequired }("");
+            require(ok, "Slash transfer failed");
+            emit DepositSlashed(defaultedWinner, depositRequired, buyer);
+        }
+
         if (secondBidder != address(0)) {
             winner = secondBidder;
             winningBidAmount = secondBidAmount;
@@ -466,7 +500,8 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
 
     // ─── Creator Bond ─────────────────────────────────────────────────────────
 
-    function slashCreatorBond(address victim) external onlyAdmin {
+    function slashCreatorBond(address victim) external {
+        require(msg.sender == platformAdmin || msg.sender == oracle, "Not authorized to slash bond");
         require(!bondSlashed, "Bond already slashed");
         bondSlashed = true;
         uint256 bond = creatorBond;

@@ -40,10 +40,19 @@ const scaffoldConfig = {
   // .env.local for local testing, and in the Vercel/system env config for live apps.
   alchemyApiKey: process.env.NEXT_PUBLIC_ALCHEMY_API_KEY || DEFAULT_ALCHEMY_API_KEY,
   // If you want to use a different RPC for a specific network, you can add it here.
-  // The key is the chain ID, and the value is the HTTP RPC URL
+  // The key is the chain ID, and the value is the HTTP RPC URL.
+  //
+  // MEV / FRONT-RUNNING PROTECTION:
+  // For mainnet bid commits, route through Flashbots Protect to avoid mempool sniping.
+  // For ADI Chain, use the native private mempool RPC (check ADI Foundation docs).
+  // Uncomment the relevant line when deploying to live networks.
   rpcOverrides: {
-    // Example:
-    // [chains.mainnet.id]: "https://mainnet.rpc.buidlguidl.com",
+    // Flashbots Protect — hides pending txs from searchers on Ethereum mainnet
+    // [chains.mainnet.id]: "https://rpc.flashbots.net",
+    // ADI Chain Testnet (chain ID 99999) — use ADI Foundation compliant RPC
+    // [adiTestnet.id]: process.env.NEXT_PUBLIC_ADI_TESTNET_RPC ?? "https://rpc.ab.testnet.adifoundation.ai/",
+    // ADI Chain Mainnet (chain ID 36900)
+    // [36900]: process.env.NEXT_PUBLIC_ADI_MAINNET_RPC ?? "https://rpc.adifoundation.ai/",
   },
   // This is ours WalletConnect's default project ID.
   // You can get your own at https://cloud.walletconnect.com

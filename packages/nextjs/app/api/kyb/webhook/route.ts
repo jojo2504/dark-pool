@@ -80,7 +80,11 @@ export async function POST(req: NextRequest) {
       // Credential on-chain only if clean
       if (newStatus === "verified") {
         try {
-          const txHash = await onChainVerifyInstitution(walletAddress, institution.isAccredited);
+          const txHash = await onChainVerifyInstitution(
+            walletAddress,
+            institution.isAccredited,
+            institution.jurisdiction ?? "",
+          );
           await prisma.institution.update({
             where: { walletAddress },
             data: { onChainVerified: true, onChainTxHash: txHash },

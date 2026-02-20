@@ -74,9 +74,18 @@ export const FACTORY_ABI = [
     inputs: [
       { name: "inst", type: "address" },
       { name: "accredited", type: "bool" },
+      { name: "_jurisdiction", type: "string" },
       { name: "", type: "bytes" },
     ],
     outputs: [],
+  },
+  // institutionJurisdiction (view)
+  {
+    type: "function",
+    name: "institutionJurisdiction",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "address" }],
+    outputs: [{ name: "", type: "string" }],
   },
   // revokeInstitution (admin only)
   {
