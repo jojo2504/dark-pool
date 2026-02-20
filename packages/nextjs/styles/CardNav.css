@@ -177,10 +177,23 @@
     transform 0.2s ease;
 }
 
-/* ── CTA button ───────────────────────────────── */
+/* ── Wallet (outside nav to avoid overflow clip) ─ */
+.card-nav-wallet {
+  position: absolute;
+  top: 0;
+  right: 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  z-index: 51;
+  pointer-events: auto;
+}
+
+/* ── CTA button spacer ───────────────────────────── */
 .card-nav-cta-button {
   display: flex;
   align-items: center;
+  min-width: 120px;
 }
 
 /* ── Mobile ────────────────────────────────────── */

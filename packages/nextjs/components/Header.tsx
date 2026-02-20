@@ -140,6 +140,11 @@ export function Header() {
 
   return (
     <div className="card-nav-container">
+      {/* Wallet button lives OUTSIDE the nav to avoid overflow:hidden clipping its dropdown */}
+      <div className="card-nav-wallet">
+        <RainbowKitCustomConnectButton />
+      </div>
+
       <nav ref={navRef} className={`card-nav ${isExpanded ? "open" : ""}`}>
         <div className="card-nav-top">
           <div
@@ -160,9 +165,8 @@ export function Header() {
             <OGStatusWidget />
           </div>
 
-          <div className="card-nav-cta-button">
-            <RainbowKitCustomConnectButton />
-          </div>
+          {/* Empty spacer to keep the top bar layout balanced */}
+          <div className="card-nav-cta-button" />
         </div>
 
         <div className="card-nav-content" aria-hidden={!isExpanded}>
