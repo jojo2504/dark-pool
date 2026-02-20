@@ -5,10 +5,11 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { useAccount, useReadContract, useReadContracts } from "wagmi";
 import { PostRevealReport } from "~~/components/ai/PostRevealReport";
+import { Countdown } from "~~/components/darkpool/Countdown";
 import { FACTORY_ABI, VAULT_ABI } from "~~/lib/contracts";
 import { FACTORY_ADDRESS } from "~~/lib/darkpool-config";
 import { VaultPhase, phaseToStatus } from "~~/lib/types";
-import { formatAddress, formatTimeLeft, formatTimestamp, formatWei } from "~~/lib/utils";
+import { formatAddress, formatTimestamp, formatWei } from "~~/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,8 +57,6 @@ function VaultRow({
 }) {
   const [showReport, setShowReport] = useState(false);
   const cfg = STATUS_CONFIG[vault.status] ?? STATUS_CONFIG.open;
-  const nowSec = Math.floor(Date.now() / 1000);
-  const secsLeft = Math.max(0, Number(vault.closeTime) - nowSec);
   const isOpen = vault.status === "open";
   const isSettled = vault.status === "settled";
   const isWinner = vault.winner.toLowerCase() === userAddress.toLowerCase();
@@ -73,9 +72,10 @@ function VaultRow({
               {cfg.badge}
             </span>
             {isOpen && (
-              <span className="font-mono text-[10px] tracking-[0.1em] uppercase opacity-100">
-                {formatTimeLeft(secsLeft)}
-              </span>
+              <Countdown
+                closeTimestamp={Number(vault.closeTime)}
+                className="font-mono text-[10px] tracking-[0.1em] uppercase"
+              />
             )}
           </div>
           <div className="flex items-center gap-0">

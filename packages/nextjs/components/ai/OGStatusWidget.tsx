@@ -48,7 +48,7 @@ export function OGStatusWidget() {
       onClick={check}
       title={
         health
-          ? `${health.providerCount} providers — ${health.latencyMs}ms${health.error ? ` — ${health.error}` : ""}`
+          ? `${health.providerCount >= 0 ? health.providerCount + " providers" : "RPC reachable"} — ${health.latencyMs}ms${health.error ? ` — ${health.error}` : ""}`
           : "Checking..."
       }
     >
@@ -62,7 +62,7 @@ export function OGStatusWidget() {
       </span>
       {health?.status === "ok" && (
         <span className="font-mono text-[8px] opacity-0 group-hover:opacity-30 transition-opacity">
-          {health.latencyMs}ms · {health.providerCount}p
+          {health.latencyMs}ms{health.providerCount >= 0 ? ` · ${health.providerCount}p` : ""}
         </span>
       )}
     </div>

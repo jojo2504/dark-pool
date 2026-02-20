@@ -13,11 +13,12 @@ import {
   useWriteContract,
 } from "wagmi";
 import { CompetitivenessWidget } from "~~/components/ai/CompetitivenessWidget";
+import { Countdown } from "~~/components/darkpool/Countdown";
 import { useMarketHistoricalData } from "~~/hooks/useMarketHistoricalData";
 import { FACTORY_ABI, VAULT_ABI } from "~~/lib/contracts";
 import { FACTORY_ADDRESS, ZERO_ADDRESS } from "~~/lib/darkpool-config";
 import { VaultPhase } from "~~/lib/types";
-import { formatTimeLeft, formatWei } from "~~/lib/utils";
+import { formatWei } from "~~/lib/utils";
 
 interface BidPanelProps {
   vaultAddress: `0x${string}`;
@@ -269,7 +270,13 @@ export function BidPanel({
             {isOpen ? "SUBMIT BID" : isReveal ? "REVEAL BID" : "CLOSED"}
           </span>
           <span className="font-mono text-[10px] tracking-[0.1em] uppercase opacity-100">
-            {isOpen ? formatTimeLeft(secsToClose) : isReveal ? formatTimeLeft(secsToRevealEnd) : "—"}
+            {isOpen ? (
+              <Countdown closeTimestamp={Number(closeTime)} />
+            ) : isReveal ? (
+              <Countdown closeTimestamp={Number(revealDeadline)} />
+            ) : (
+              "—"
+            )}
           </span>
         </div>
 

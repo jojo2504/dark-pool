@@ -5,6 +5,7 @@ import Link from "next/link";
 import toast from "react-hot-toast";
 import { useAccount, useReadContracts, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { BidPanel } from "~~/components/darkpool/BidPanel";
+import { Countdown } from "~~/components/darkpool/Countdown";
 import { VAULT_ABI } from "~~/lib/contracts";
 import { ZERO_ADDRESS } from "~~/lib/darkpool-config";
 import { PHASE_LABEL, VaultPhase, phaseToStatus } from "~~/lib/types";
@@ -216,14 +217,28 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
       <div className="border-b border-white">
         <div className="max-w-5xl mx-auto grid grid-cols-2 sm:grid-cols-4">
           {[
-            { label: "DEPOSIT", value: formatWei(depositRequired) },
-            { label: "CLOSE", value: formatTimestamp(closeTime) },
-            { label: "BIDS", value: String(Number(bidCount)) },
-            { label: "REVEAL", value: formatTimestamp(revealDeadline) },
+            { label: "DEPOSIT", value: formatWei(depositRequired), node: null },
+            {
+              label: "CLOSE",
+              value: formatTimestamp(closeTime),
+              node:
+                status === "open" ? (
+                  <Countdown closeTimestamp={Number(closeTime)} className="font-mono text-xs font-bold" />
+                ) : null,
+            },
+            { label: "BIDS", value: String(Number(bidCount)), node: null },
+            { label: "REVEAL", value: formatTimestamp(revealDeadline), node: null },
           ].map((s, i) => (
             <div key={s.label} className={`px-6 py-6 ${i < 3 ? "border-r border-white" : ""}`}>
               <p className="font-mono text-[9px] tracking-[0.2em] uppercase opacity-100 mb-1">{s.label}</p>
-              <p className="font-mono text-xs font-bold">{s.value}</p>
+              {s.node ? (
+                <div>
+                  {s.node}
+                  <p className="font-mono text-[9px] opacity-60 mt-1">{s.value}</p>
+                </div>
+              ) : (
+                <p className="font-mono text-xs font-bold">{s.value}</p>
+              )}
             </div>
           ))}
         </div>

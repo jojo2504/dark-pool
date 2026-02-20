@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useReadContracts } from "wagmi";
+import { Countdown } from "~~/components/darkpool/Countdown";
 import { VAULT_ABI } from "~~/lib/contracts";
 import { VaultPhase, phaseToStatus } from "~~/lib/types";
-import { formatTimeLeft, formatWei } from "~~/lib/utils";
+import { formatWei } from "~~/lib/utils";
 
 interface VaultCardProps {
   address: `0x${string}`;
@@ -68,8 +69,6 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
   const status = phaseToStatus(phase, closeTime);
   if (statusFilter !== "all" && status !== statusFilter) return null;
 
-  const nowSec = Math.floor(Date.now() / 1000);
-  const secsLeft = Math.max(0, Number(closeTime) - nowSec);
   const isOpen = status === "open";
 
   return (
@@ -99,7 +98,10 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
               )}
             </div>
             {isOpen && (
-              <span className="font-mono text-[10px] tracking-[0.1em] uppercase">{formatTimeLeft(secsLeft)}</span>
+              <Countdown
+                closeTimestamp={Number(closeTime)}
+                className="font-mono text-[10px] tracking-[0.1em] uppercase"
+              />
             )}
           </div>
 
