@@ -1,11 +1,10 @@
 /**
  * POST /api/kyb/submit
  * Body: { walletAddress: string, legalName?: string, jurisdiction?: string, contactEmail?: string }
- * Returns: { token: string } — Sumsub SDK token for the WebSDK
+ * Returns: { token: string, demo: true } — demo token (Sumsub integration on roadmap)
  */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "~~/lib/prisma";
-import { getOrCreateApplicant } from "~~/lib/sumsub";
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,8 +40,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Get Sumsub SDK token
-    const { applicantId, token } = await getOrCreateApplicant(walletAddress);
+    // Demo: real KYB document verification is on the roadmap
+    const applicantId = `demo-${walletAddress.slice(2, 10)}`;
+    const token = `demo-token-${walletAddress.slice(2, 10)}`;
 
     // Store applicant ID
     if (!institution.sumsubApplicantId) {
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ token });
+    return NextResponse.json({ token, demo: true });
   } catch (e: unknown) {
     console.error("[kyb/submit]", e);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

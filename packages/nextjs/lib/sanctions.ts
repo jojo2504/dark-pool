@@ -18,6 +18,12 @@ export interface SanctionSearchResult {
 
 /** Run a sanctions search for an entity name + jurisdiction */
 export async function screenEntity(entityName: string, jurisdiction?: string): Promise<SanctionSearchResult> {
+  // Demo mode: no real ComplyAdvantage key configured
+  if (!API_KEY) {
+    console.warn("[sanctions] DEMO MODE — skipping real screening (COMPLY_ADVANTAGE_API_KEY not set)");
+    return { searchId: "demo", totalHits: 0, hits: [] };
+  }
+
   const body = {
     search_term: entityName,
     fuzziness: 0.6,

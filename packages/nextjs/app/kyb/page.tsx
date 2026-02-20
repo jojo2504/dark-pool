@@ -27,6 +27,7 @@ export default function KybPage() {
   const [jurisdiction, setJurisdiction] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [sdkToken, setSdkToken] = useState<string | null>(null);
+  const [isDemo, setIsDemo] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Determine step from wallet + status
@@ -70,12 +71,13 @@ export default function KybPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ walletAddress, legalName, jurisdiction, contactEmail }),
       });
-      const data = (await res.json()) as { token?: string; error?: string };
+      const data = (await res.json()) as { token?: string; demo?: boolean; error?: string };
       if (!res.ok || data.error) {
         setSubmitError(data.error ?? "Submission failed");
         return;
       }
       setSdkToken(data.token ?? null);
+      setIsDemo(data.demo ?? false);
       setStep("verify");
     } catch {
       setSubmitError("Network error. Try again.");
@@ -107,8 +109,7 @@ export default function KybPage() {
         <div className="mb-10 border-b border-white pb-6">
           <h1 className="font-mono text-xl font-bold tracking-[0.08em] uppercase mb-2">KYB VERIFICATION</h1>
           <p className="font-mono text-[11px] uppercase opacity-40 leading-relaxed">
-            INSTITUTIONAL KNOW-YOUR-BUSINESS VERIFICATION REQUIRED TO PARTICIPATE IN SEALED-BID AUCTIONS. POWERED BY
-            SUMSUB.
+            INSTITUTIONAL KNOW-YOUR-BUSINESS VERIFICATION REQUIRED TO PARTICIPATE IN SEALED-BID AUCTIONS.
           </p>
         </div>
 
@@ -196,29 +197,56 @@ export default function KybPage() {
           <div className="space-y-6">
             {sdkToken ? (
               <>
-                <div className="border border-yellow-400/40 p-4">
-                  <p className="font-mono text-[10px] uppercase text-yellow-400 mb-1">SUMSUB SDK TOKEN READY</p>
-                  <p className="font-mono text-[10px] uppercase opacity-50 leading-relaxed">
-                    IN PRODUCTION, THE SUMSUB WEBSDK IFRAME RENDERS HERE.
-                    <br />
-                    TOKEN: {sdkToken.slice(0, 20)}...
-                  </p>
-                </div>
-                {/* In production, integrate @sumsub/websdk-react here:
-                    <SumsubWebSdk accessToken={sdkToken} expirationHandler={...} config={...} /> */}
-                <div className="border border-white p-6 text-center space-y-3">
-                  <p className="font-mono text-xs uppercase opacity-50">VERIFICATION IN PROGRESS</p>
-                  <p className="font-mono text-[10px] uppercase opacity-30 leading-relaxed">
-                    COMPLETE THE DOCUMENT UPLOAD FLOW IN THE SUMSUB WIDGET ABOVE. YOU WILL RECEIVE AN EMAIL WHEN REVIEW
-                    IS COMPLETE.
-                  </p>
-                  <button
-                    onClick={fetchStatus}
-                    className="font-mono text-[10px] uppercase opacity-40 hover:opacity-100 underline"
-                  >
-                    [REFRESH STATUS]
-                  </button>
-                </div>
+                {isDemo ? (
+                  <div className="border border-yellow-400/60 p-6 space-y-4">
+                    <p className="font-mono text-[10px] uppercase text-yellow-400 font-bold">⚠ DEMO MODE</p>
+                    <p className="font-mono text-[10px] uppercase opacity-50 leading-relaxed">
+                      SUMSUB INTEGRATION IS ON THE ROADMAP. IN PRODUCTION, REAL DOCUMENT VERIFICATION RUNS HERE.
+                    </p>
+                    <button
+                      onClick={async () => {
+                        if (!walletAddress) return;
+                        setIsLoading(true);
+                        try {
+                          await fetch(`/api/kyb/demo-approve?wallet=${walletAddress}`, { method: "POST" });
+                          await fetchStatus();
+                        } finally {
+                          setIsLoading(false);
+                        }
+                      }}
+                      disabled={isLoading}
+                      className="w-full py-3 border border-yellow-400 text-yellow-400 font-mono text-xs tracking-[0.15em] uppercase font-bold hover:bg-yellow-400 hover:text-black disabled:opacity-20 transition-all duration-100"
+                    >
+                      {isLoading ? "PROCESSING..." : "[ SIMULATE KYB APPROVAL ]"}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="border border-yellow-400/40 p-4">
+                      <p className="font-mono text-[10px] uppercase text-yellow-400 mb-1">SUMSUB SDK TOKEN READY</p>
+                      <p className="font-mono text-[10px] uppercase opacity-50 leading-relaxed">
+                        IN PRODUCTION, THE SUMSUB WEBSDK IFRAME RENDERS HERE.
+                        <br />
+                        TOKEN: {sdkToken.slice(0, 20)}...
+                      </p>
+                    </div>
+                    {/* In production, integrate @sumsub/websdk-react here:
+                        <SumsubWebSdk accessToken={sdkToken} expirationHandler={...} config={...} /> */}
+                    <div className="border border-white p-6 text-center space-y-3">
+                      <p className="font-mono text-xs uppercase opacity-50">VERIFICATION IN PROGRESS</p>
+                      <p className="font-mono text-[10px] uppercase opacity-30 leading-relaxed">
+                        COMPLETE THE DOCUMENT UPLOAD FLOW IN THE SUMSUB WIDGET ABOVE. YOU WILL RECEIVE AN EMAIL WHEN
+                        REVIEW IS COMPLETE.
+                      </p>
+                      <button
+                        onClick={fetchStatus}
+                        className="font-mono text-[10px] uppercase opacity-40 hover:opacity-100 underline"
+                      >
+                        [REFRESH STATUS]
+                      </button>
+                    </div>
+                  </>
+                )}
               </>
             ) : (
               <div className="border border-white p-6 text-center space-y-3">
