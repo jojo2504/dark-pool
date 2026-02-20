@@ -4,7 +4,7 @@
 // import that would occur if we imported deployedContracts.ts here
 // (deployedContracts → contract.ts → deployedContracts again).
 export const FACTORY_ADDRESS = (process.env.NEXT_PUBLIC_FACTORY_ADDRESS ??
-  "0x01D63639b43985e7201120208F35E2DD6C128d94") as `0x${string}`;
+  "0xf9283A2da827A939b931283F696f79b69f289Ee2") as `0x${string}`;
 
 // DDSC: UAE Central Bank-licensed dirham stablecoin on ADI Chain
 // https://adifoundation.ai/ddsc
