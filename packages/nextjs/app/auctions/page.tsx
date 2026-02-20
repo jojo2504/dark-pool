@@ -66,9 +66,9 @@ export default function AuctionsPage() {
       <div className="border-b border-white">
         <div className="max-w-5xl mx-auto px-6 py-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
-            <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-40 mb-3">[ BROWSE ]</p>
+            <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-100 mb-3">[ BROWSE ]</p>
             <h1 className="font-mono text-3xl font-bold tracking-[-0.03em] uppercase text-white">AUCTIONS</h1>
-            {addresses.length > 0 && <p className="font-mono text-xs opacity-40 mt-1">{addresses.length} TOTAL</p>}
+            {addresses.length > 0 && <p className="font-mono text-xs opacity-100 mt-1">{addresses.length} TOTAL</p>}
           </div>
           <div className="flex gap-0">
             <button
@@ -108,7 +108,7 @@ export default function AuctionsPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="SEARCH ADDRESS..."
-            className="bg-black border border-white px-4 py-2 font-mono text-xs text-white placeholder:text-white/20 w-full sm:w-64 focus:outline-none focus:bg-white focus:text-black transition-all duration-100"
+            className="bg-black border border-white/50 px-4 py-2 font-mono text-xs text-white placeholder:text-white/40 w-full sm:w-64 focus:outline-none focus:border-white transition-all duration-100"
           />
         </div>
       </div>
@@ -116,20 +116,20 @@ export default function AuctionsPage() {
       {/* Content */}
       <div className="max-w-5xl mx-auto px-6 py-8">
         {isLoading ? (
-          <p className="font-mono text-xs uppercase opacity-30 py-20 text-center">LOADING...</p>
+          <p className="font-mono text-xs uppercase opacity-100 py-20 text-center">LOADING...</p>
         ) : isError ? (
           <div className="text-center py-20">
-            <p className="font-mono text-xs uppercase opacity-50 mb-2">FAILED TO LOAD VAULTS</p>
+            <p className="font-mono text-xs uppercase opacity-100 mb-2">FAILED TO LOAD VAULTS</p>
             <button
               onClick={() => refetch()}
-              className="font-mono text-[10px] uppercase opacity-30 hover:opacity-100 transition-opacity"
+              className="font-mono text-[10px] uppercase opacity-100 hover:opacity-100 transition-opacity"
             >
               [RETRY]
             </button>
           </div>
         ) : addresses.length === 0 ? (
           <div className="text-center py-20">
-            <p className="font-mono text-sm uppercase opacity-40 mb-2">NO VAULTS DEPLOYED</p>
+            <p className="font-mono text-sm uppercase opacity-100 mb-2">NO VAULTS DEPLOYED</p>
             <Link
               href="/auctions/create"
               className="font-mono text-xs uppercase border-b border-white hover:opacity-60 transition-all px-1"

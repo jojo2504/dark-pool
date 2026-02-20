@@ -87,7 +87,7 @@ export default function KybPage() {
   }
 
   const inputClass =
-    "w-full px-4 py-3 bg-black border border-white font-mono text-xs text-white placeholder:text-white/20 focus:outline-none focus:bg-white focus:text-black transition-all duration-100";
+    "w-full px-4 py-3 bg-black border border-white/50 font-mono text-xs text-white placeholder:text-white/40 focus:outline-none focus:border-white transition-all duration-100";
 
   const statusColor = kybStatus ? (KYB_STATUS_COLOR[kybStatus.kybStatus] ?? "text-white") : "text-white";
   const statusLabel = kybStatus ? (KYB_STATUS_LABEL[kybStatus.kybStatus] ?? kybStatus.kybStatus) : "";
@@ -99,7 +99,7 @@ export default function KybPage() {
         <div className="mb-8">
           <Link
             href="/auctions"
-            className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-30 hover:opacity-100 transition-opacity"
+            className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 hover:opacity-100 transition-opacity"
           >
             ← BACK TO AUCTIONS
           </Link>
@@ -108,7 +108,7 @@ export default function KybPage() {
         {/* Title */}
         <div className="mb-10 border-b border-white pb-6">
           <h1 className="font-mono text-xl font-bold tracking-[0.08em] uppercase mb-2">KYB VERIFICATION</h1>
-          <p className="font-mono text-[11px] uppercase opacity-40 leading-relaxed">
+          <p className="font-mono text-[11px] uppercase opacity-100 leading-relaxed">
             INSTITUTIONAL KNOW-YOUR-BUSINESS VERIFICATION REQUIRED TO PARTICIPATE IN SEALED-BID AUCTIONS.
           </p>
         </div>
@@ -116,8 +116,8 @@ export default function KybPage() {
         {/* Step: connect */}
         {step === "connect" && (
           <div className="border border-white p-8 text-center space-y-4">
-            <p className="font-mono text-xs uppercase opacity-50">CONNECT YOUR WALLET TO BEGIN</p>
-            <p className="font-mono text-[10px] uppercase opacity-30 leading-relaxed">
+            <p className="font-mono text-xs uppercase opacity-100">CONNECT YOUR WALLET TO BEGIN</p>
+            <p className="font-mono text-[10px] uppercase opacity-100 leading-relaxed">
               KYB IS TIED TO YOUR WALLET ADDRESS. ENSURE YOU ARE USING THE WALLET YOU INTEND TO BID WITH.
             </p>
           </div>
@@ -127,14 +127,14 @@ export default function KybPage() {
         {step === "register" && isConnected && (
           <div className="space-y-6">
             <div className="border border-white p-4">
-              <p className="font-mono text-[10px] uppercase opacity-60 leading-relaxed">
+              <p className="font-mono text-[10px] uppercase opacity-100 leading-relaxed">
                 WALLET: <span className="opacity-100 text-white">{walletAddress}</span>
               </p>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-50 block mb-2">
+                <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 block mb-2">
                   LEGAL ENTITY NAME *
                 </label>
                 <input
@@ -146,7 +146,7 @@ export default function KybPage() {
                 />
               </div>
               <div>
-                <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-50 block mb-2">
+                <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 block mb-2">
                   JURISDICTION (ISO-3166 CODE)
                 </label>
                 <input
@@ -159,7 +159,7 @@ export default function KybPage() {
                 />
               </div>
               <div>
-                <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-50 block mb-2">
+                <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 block mb-2">
                   COMPLIANCE CONTACT EMAIL
                 </label>
                 <input
@@ -186,7 +186,7 @@ export default function KybPage() {
               {isLoading ? "SUBMITTING..." : "START KYB VERIFICATION"}
             </button>
 
-            <p className="font-mono text-[10px] uppercase opacity-30 text-center leading-relaxed">
+            <p className="font-mono text-[10px] uppercase opacity-100 text-center leading-relaxed">
               YOU WILL COMPLETE DOCUMENT VERIFICATION VIA THE SUMSUB SDK. REVIEW TYPICALLY TAKES 1-3 BUSINESS DAYS.
             </p>
           </div>
@@ -200,7 +200,7 @@ export default function KybPage() {
                 {isDemo ? (
                   <div className="border border-yellow-400/60 p-6 space-y-4">
                     <p className="font-mono text-[10px] uppercase text-yellow-400 font-bold">⚠ DEMO MODE</p>
-                    <p className="font-mono text-[10px] uppercase opacity-50 leading-relaxed">
+                    <p className="font-mono text-[10px] uppercase opacity-100 leading-relaxed">
                       SUMSUB INTEGRATION IS ON THE ROADMAP. IN PRODUCTION, REAL DOCUMENT VERIFICATION RUNS HERE.
                     </p>
                     <button
@@ -224,7 +224,7 @@ export default function KybPage() {
                   <>
                     <div className="border border-yellow-400/40 p-4">
                       <p className="font-mono text-[10px] uppercase text-yellow-400 mb-1">SUMSUB SDK TOKEN READY</p>
-                      <p className="font-mono text-[10px] uppercase opacity-50 leading-relaxed">
+                      <p className="font-mono text-[10px] uppercase opacity-100 leading-relaxed">
                         IN PRODUCTION, THE SUMSUB WEBSDK IFRAME RENDERS HERE.
                         <br />
                         TOKEN: {sdkToken.slice(0, 20)}...
@@ -233,14 +233,14 @@ export default function KybPage() {
                     {/* In production, integrate @sumsub/websdk-react here:
                         <SumsubWebSdk accessToken={sdkToken} expirationHandler={...} config={...} /> */}
                     <div className="border border-white p-6 text-center space-y-3">
-                      <p className="font-mono text-xs uppercase opacity-50">VERIFICATION IN PROGRESS</p>
-                      <p className="font-mono text-[10px] uppercase opacity-30 leading-relaxed">
+                      <p className="font-mono text-xs uppercase opacity-100">VERIFICATION IN PROGRESS</p>
+                      <p className="font-mono text-[10px] uppercase opacity-100 leading-relaxed">
                         COMPLETE THE DOCUMENT UPLOAD FLOW IN THE SUMSUB WIDGET ABOVE. YOU WILL RECEIVE AN EMAIL WHEN
                         REVIEW IS COMPLETE.
                       </p>
                       <button
                         onClick={fetchStatus}
-                        className="font-mono text-[10px] uppercase opacity-40 hover:opacity-100 underline"
+                        className="font-mono text-[10px] uppercase opacity-100 hover:opacity-100 underline"
                       >
                         [REFRESH STATUS]
                       </button>
@@ -251,13 +251,13 @@ export default function KybPage() {
             ) : (
               <div className="border border-white p-6 text-center space-y-3">
                 <p className="font-mono text-xs uppercase">REVIEW PENDING</p>
-                <p className="font-mono text-[10px] uppercase opacity-40 leading-relaxed">
+                <p className="font-mono text-[10px] uppercase opacity-100 leading-relaxed">
                   YOUR SUBMISSION IS UNDER REVIEW. THIS TYPICALLY TAKES 1-3 BUSINESS DAYS.
                 </p>
                 <button
                   onClick={fetchStatus}
                   disabled={isLoading}
-                  className="font-mono text-[10px] uppercase opacity-40 hover:opacity-100 underline"
+                  className="font-mono text-[10px] uppercase opacity-100 hover:opacity-100 underline"
                 >
                   {isLoading ? "CHECKING..." : "[REFRESH STATUS]"}
                 </button>
@@ -272,37 +272,37 @@ export default function KybPage() {
             {/* Status badge */}
             <div className="border border-white p-6">
               <div className="flex items-center justify-between mb-4">
-                <span className="font-mono text-[10px] uppercase opacity-40">KYB STATUS</span>
+                <span className="font-mono text-[10px] uppercase opacity-100">KYB STATUS</span>
                 <span className={`font-mono text-sm font-bold uppercase ${statusColor}`}>{statusLabel}</span>
               </div>
 
               <div className="space-y-2">
                 {kybStatus.legalName && (
                   <div className="flex justify-between">
-                    <span className="font-mono text-[10px] uppercase opacity-30">ENTITY</span>
+                    <span className="font-mono text-[10px] uppercase opacity-100">ENTITY</span>
                     <span className="font-mono text-[10px]">{kybStatus.legalName}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="font-mono text-[10px] uppercase opacity-30">ON-CHAIN</span>
+                  <span className="font-mono text-[10px] uppercase opacity-100">ON-CHAIN</span>
                   <span
-                    className={`font-mono text-[10px] uppercase ${kybStatus.onChainVerified ? "text-green-400" : "opacity-40"}`}
+                    className={`font-mono text-[10px] uppercase ${kybStatus.onChainVerified ? "text-green-400" : "opacity-100"}`}
                   >
                     {kybStatus.onChainVerified ? "VERIFIED ✓" : "PENDING"}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="font-mono text-[10px] uppercase opacity-30">ACCREDITED</span>
+                  <span className="font-mono text-[10px] uppercase opacity-100">ACCREDITED</span>
                   <span
-                    className={`font-mono text-[10px] uppercase ${kybStatus.isAccredited ? "text-green-400" : "opacity-40"}`}
+                    className={`font-mono text-[10px] uppercase ${kybStatus.isAccredited ? "text-green-400" : "opacity-100"}`}
                   >
                     {kybStatus.isAccredited ? "YES" : "NO"}
                   </span>
                 </div>
                 {kybStatus.lastScreenedAt && (
                   <div className="flex justify-between">
-                    <span className="font-mono text-[10px] uppercase opacity-30">LAST SCREENED</span>
-                    <span className="font-mono text-[10px] opacity-60">
+                    <span className="font-mono text-[10px] uppercase opacity-100">LAST SCREENED</span>
+                    <span className="font-mono text-[10px] opacity-100">
                       {new Date(kybStatus.lastScreenedAt).toLocaleDateString()}
                     </span>
                   </div>
@@ -318,7 +318,7 @@ export default function KybPage() {
                 </p>
                 <Link
                   href="/auctions"
-                  className="block font-mono text-[10px] uppercase opacity-50 hover:opacity-100 underline"
+                  className="block font-mono text-[10px] uppercase opacity-100 hover:opacity-100 underline"
                 >
                   VIEW AUCTIONS →
                 </Link>
@@ -342,7 +342,7 @@ export default function KybPage() {
             <button
               onClick={fetchStatus}
               disabled={isLoading}
-              className="w-full py-3 border border-white font-mono text-xs tracking-[0.15em] uppercase opacity-50 hover:opacity-100 disabled:opacity-20 transition-all"
+              className="w-full py-3 border border-white font-mono text-xs tracking-[0.15em] uppercase opacity-100 hover:opacity-100 disabled:opacity-20 transition-all"
             >
               {isLoading ? "REFRESHING..." : "[REFRESH STATUS]"}
             </button>
@@ -352,7 +352,7 @@ export default function KybPage() {
         {/* Loading state */}
         {isLoading && !kybStatus && (
           <div className="text-center py-12">
-            <p className="font-mono text-xs uppercase opacity-30">LOADING...</p>
+            <p className="font-mono text-xs uppercase opacity-100">LOADING...</p>
           </div>
         )}
       </div>

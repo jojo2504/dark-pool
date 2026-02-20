@@ -30,7 +30,7 @@ export function CTASection() {
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
-          className="font-mono text-sm text-white opacity-50 mb-12 max-w-md mx-auto"
+          className="font-mono text-sm text-white opacity-100 mb-12 max-w-md mx-auto"
         >
           <EncryptedText
             text="Deploy a vault. Submit a sealed bid. Trustless from start to finish."
@@ -61,7 +61,7 @@ export function CTASection() {
           </div>
           <Link
             href="/kyb"
-            className="font-mono text-[10px] uppercase opacity-30 hover:opacity-80 transition-all tracking-[0.15em] underline underline-offset-4"
+            className="font-mono text-[10px] uppercase opacity-100 hover:opacity-80 transition-all tracking-[0.15em] underline underline-offset-4"
           >
             INSTITUTIONAL? COMPLETE KYB VERIFICATION FIRST
           </Link>

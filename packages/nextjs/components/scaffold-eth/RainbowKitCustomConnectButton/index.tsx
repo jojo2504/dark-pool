@@ -1,20 +1,72 @@
 "use client";
 
 // @refresh reset
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AddressInfoDropdown } from "./AddressInfoDropdown";
 import { AddressQRCodeModal } from "./AddressQRCodeModal";
 import { RevealBurnerPKModal } from "./RevealBurnerPKModal";
 import { WrongNetworkDropdown } from "./WrongNetworkDropdown";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { Balance } from "@scaffold-ui/components";
-import { Address } from "viem";
-import { useReadContract } from "wagmi";
+import { Address, formatEther } from "viem";
+import { useBalance, useReadContract } from "wagmi";
 import { useNetworkColor } from "~~/hooks/scaffold-eth";
 import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
 import { FACTORY_ABI } from "~~/lib/contracts";
 import { FACTORY_ADDRESS } from "~~/lib/darkpool-config";
 import { getBlockExplorerAddressLink } from "~~/utils/scaffold-eth";
+
+/**
+ * Fetch the 0G (A0GI) price from CoinGecko.
+ * Cached for 60s to avoid rate-limiting on the free tier.
+ */
+let cachedPrice = 0;
+let lastFetch = 0;
+const CACHE_TTL = 60_000; // 60 seconds
+
+async function fetchOGPrice(): Promise<number> {
+  const now = Date.now();
+  if (cachedPrice > 0 && now - lastFetch < CACHE_TTL) return cachedPrice;
+  try {
+    const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=zero-gravity&vs_currencies=usd");
+    if (!res.ok) return cachedPrice;
+    const data = await res.json();
+    cachedPrice = data["zero-gravity"]?.usd ?? 0;
+    lastFetch = now;
+    return cachedPrice;
+  } catch {
+    return cachedPrice;
+  }
+}
+
+/** Custom balance display that uses the real 0G/A0GI price instead of ETH price. */
+function A0GIBalance({ address }: { address: Address }) {
+  const { data: balanceData } = useBalance({ address });
+  const [usdPrice, setUsdPrice] = useState(cachedPrice);
+
+  const refresh = useCallback(() => {
+    fetchOGPrice().then(setUsdPrice);
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    const interval = setInterval(refresh, CACHE_TTL);
+    return () => clearInterval(interval);
+  }, [refresh]);
+
+  if (!balanceData) return null;
+
+  const ethValue = parseFloat(formatEther(balanceData.value));
+  const formattedBalance = ethValue.toFixed(4);
+  const usdValue = usdPrice > 0 ? (ethValue * usdPrice).toFixed(2) : null;
+
+  return (
+    <span className="font-mono text-xs text-white whitespace-nowrap">
+      {formattedBalance} {balanceData.symbol}
+      {usdValue && <span className="text-white ml-1">(${usdValue})</span>}
+    </span>
+  );
+}
 
 /**
  * Custom Wagmi Connect Button (watch balance + custom design)
@@ -50,14 +102,7 @@ export const RainbowKitCustomConnectButton = () => {
               return (
                 <>
                   <div className="flex flex-col items-center mr-2">
-                    <Balance
-                      address={account.address as Address}
-                      style={{
-                        minHeight: "0",
-                        height: "auto",
-                        fontSize: "0.8em",
-                      }}
-                    />
+                    <A0GIBalance address={account.address as Address} />
                     <span className="text-xs" style={{ color: networkColor }}>
                       {chain.name}
                     </span>

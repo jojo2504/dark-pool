@@ -57,7 +57,7 @@ export function OGStatusWidget() {
       ) : (
         <span className={`w-2 h-2 rounded-full ${cfg!.dot} animate-pulse`} />
       )}
-      <span className={`font-mono text-[9px] tracking-[0.1em] ${cfg ? cfg.textClass : "opacity-30"}`}>
+      <span className={`font-mono text-[9px] tracking-[0.1em] ${cfg ? cfg.textClass : "opacity-100"}`}>
         {checking ? "..." : cfg ? cfg.label : "0G ..."}
       </span>
       {health?.status === "ok" && (

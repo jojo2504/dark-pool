@@ -88,13 +88,13 @@ export function FeaturesSection() {
                 f.featured ? "sm:col-span-2 lg:col-span-2" : ""
               }`}
             >
-              <p className="font-mono text-[10px] tracking-[0.2em] uppercase mb-6 opacity-30 group-hover:opacity-60">
+              <p className="font-mono text-[10px] tracking-[0.2em] uppercase mb-6 opacity-100 group-hover:opacity-60">
                 {f.id}
               </p>
               <h3 className="font-mono text-sm font-bold uppercase tracking-[0.05em] mb-3">
                 <EncryptedText text={f.title} revealDelayMs={90} flipDelayMs={60} />
               </h3>
-              <p className="font-mono text-xs leading-relaxed opacity-60 group-hover:opacity-80">{f.description}</p>
+              <p className="font-mono text-xs leading-relaxed opacity-100 group-hover:opacity-80">{f.description}</p>
             </motion.div>
           ))}
         </div>

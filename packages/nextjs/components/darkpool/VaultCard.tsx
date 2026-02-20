@@ -35,7 +35,7 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: index * 0.03 }}
-        className="border border-white p-6 font-mono text-xs text-white opacity-30"
+        className="border border-white p-6 font-mono text-xs text-white opacity-100"
       >
         LOADING...
       </motion.div>
@@ -47,7 +47,7 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="border border-white p-6 font-mono text-xs text-white opacity-30"
+        className="border border-white p-6 font-mono text-xs text-white opacity-100"
       >
         ERROR: {address.slice(0, 10)}...
       </motion.div>
@@ -79,7 +79,7 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
           {/* Status */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-40 group-hover:opacity-60">
+              <span className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-100 group-hover:opacity-60">
                 {status.toUpperCase()}
               </span>
               {isPaused && (
@@ -93,7 +93,7 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
                 </span>
               )}
               {hasOracle && (
-                <span className="font-mono text-[9px] uppercase border border-white/20 text-white/40 px-1 py-0.5">
+                <span className="font-mono text-[9px] uppercase border border-white/20 text-white px-1 py-0.5">
                   ORACLE
                 </span>
               )}
@@ -105,16 +105,16 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
 
           {/* Title */}
           <h3 className="font-mono text-sm font-bold uppercase tracking-[0.02em] mb-1">{title}</h3>
-          <p className="font-mono text-[10px] opacity-30 mb-6 truncate">{address}</p>
+          <p className="font-mono text-[10px] opacity-100 mb-6 truncate">{address}</p>
 
           {/* Bottom row */}
           <div className="flex items-center justify-between font-mono text-xs">
             <span>
-              <span className="opacity-40">DEPOSIT: </span>
+              <span className="opacity-100">DEPOSIT: </span>
               <span className="font-bold">{formatWei(depositRequired)}</span>
             </span>
             <span>
-              <span className="opacity-40">BIDS: </span>
+              <span className="opacity-100">BIDS: </span>
               <span className="font-bold">{Number(bidCount)}</span>
             </span>
           </div>

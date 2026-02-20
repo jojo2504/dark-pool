@@ -28,7 +28,7 @@ export const KYB_STATUS_LABEL: Record<KYBStatus, string> = {
 };
 
 export const KYB_STATUS_COLOR: Record<KYBStatus, string> = {
-  not_found: "text-white/40",
+  not_found: "text-white",
   pending: "text-yellow-400",
   under_review: "text-blue-400",
   verified: "text-green-400",

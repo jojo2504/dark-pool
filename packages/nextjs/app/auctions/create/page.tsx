@@ -197,13 +197,13 @@ export default function CreateAuctionPage() {
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="border border-white p-12 text-center max-w-sm">
           <p className="font-mono text-sm font-bold uppercase tracking-[0.1em] mb-2">VAULT DEPLOYED</p>
-          <p className="font-mono text-[10px] uppercase opacity-40 mb-6">CONTRACT LIVE ON-CHAIN</p>
-          {txHash && <p className="font-mono text-[10px] opacity-20 mb-6">{txHash.slice(0, 24)}...</p>}
+          <p className="font-mono text-[10px] uppercase opacity-100 mb-6">CONTRACT LIVE ON-CHAIN</p>
+          {txHash && <p className="font-mono text-[10px] opacity-100 mb-6">{txHash.slice(0, 24)}...</p>}
           <button
-            onClick={() => router.push("/auctions")}
+            onClick={() => router.push("/auctions/my-auctions")}
             className="border border-white bg-white text-black px-6 py-3 font-mono text-[10px] tracking-[0.15em] uppercase font-bold hover:opacity-80 transition-all duration-100"
           >
-            VIEW AUCTIONS
+            VIEW MY AUCTIONS
           </button>
         </div>
       </div>
@@ -212,7 +212,7 @@ export default function CreateAuctionPage() {
 
   const tabClass = (active: boolean) =>
     `px-4 py-2 font-mono text-[10px] tracking-[0.15em] uppercase transition-all cursor-pointer ${
-      active ? "bg-white text-black" : "text-white/60 hover:text-white"
+      active ? "bg-white text-black" : "text-white hover:text-white"
     }`;
 
   return (
@@ -227,15 +227,17 @@ export default function CreateAuctionPage() {
               className="border border-white bg-black p-8 max-w-md w-full mx-4"
             >
               <p className="font-mono text-sm font-bold uppercase tracking-[0.1em] mb-4">DEPLOY VAULT</p>
-              <p className="font-mono text-[10px] uppercase opacity-40 mb-6">PARAMETERS ARE IMMUTABLE AFTER CREATION</p>
+              <p className="font-mono text-[10px] uppercase opacity-100 mb-6">
+                PARAMETERS ARE IMMUTABLE AFTER CREATION
+              </p>
 
               <div className="border border-white divide-y divide-white font-mono text-xs mb-6">
                 <div className="flex justify-between p-3">
-                  <span className="opacity-40">TITLE</span>
+                  <span className="opacity-100">TITLE</span>
                   <span className="truncate ml-4 max-w-[180px]">{pendingData.title}</span>
                 </div>
                 <div className="flex justify-between p-3">
-                  <span className="opacity-40">DURATION</span>
+                  <span className="opacity-100">DURATION</span>
                   <span>
                     {pendingData.durationHours}H + {pendingData.revealWindowHours}H REVEAL
                   </span>
@@ -245,7 +247,7 @@ export default function CreateAuctionPage() {
                   <span>{pendingData.depositEth} ADI</span>
                 </div>
                 <div className="flex justify-between p-3">
-                  <span className="opacity-40">SUPPLIERS</span>
+                  <span className="opacity-100">SUPPLIERS</span>
                   <span>
                     {pendingData.allowedSuppliersRaw.split(",").filter(s => s.trim().startsWith("0x")).length}
                   </span>
@@ -255,17 +257,17 @@ export default function CreateAuctionPage() {
                   <span>{pendingData.declaredAssetValueEth || "0"} ADI</span>
                 </div>
                 <div className="flex justify-between p-3">
-                  <span className="opacity-40">CREATOR BOND</span>
+                  <span className="opacity-100">CREATOR BOND</span>
                   <span className="text-yellow-400">
                     {bondAmount === 0n ? "0 ADI (no bond)" : `${Number(bondAmount) / 1e18} ADI`}
                   </span>
                 </div>
                 <div className="flex justify-between p-3">
-                  <span className="opacity-40">ACCREDITATION</span>
+                  <span className="opacity-100">ACCREDITATION</span>
                   <span>{pendingData.requiresAccreditation ? "REQUIRED" : "NOT REQUIRED"}</span>
                 </div>
                 <div className="flex justify-between p-3">
-                  <span className="opacity-40">SETTLEMENT</span>
+                  <span className="opacity-100">SETTLEMENT</span>
                   <span>{pendingData.settlementTokenKey === "DDSC" ? "DDSC (AED)" : "ETH (NATIVE)"}</span>
                 </div>
               </div>
@@ -275,7 +277,7 @@ export default function CreateAuctionPage() {
                   <p className="font-mono text-[10px] uppercase text-yellow-400 opacity-80">
                     ⚡ {Number(bondAmount) / 1e18} ADI CREATOR BOND WILL BE LOCKED IN ESCROW
                   </p>
-                  <p className="font-mono text-[10px] uppercase text-white/30 mt-1">
+                  <p className="font-mono text-[10px] uppercase text-white mt-1">
                     RELEASED 72H AFTER ORACLE CONFIRMS DELIVERY
                   </p>
                 </div>
@@ -306,13 +308,11 @@ export default function CreateAuctionPage() {
         {/* Header */}
         <div className="border-b border-white">
           <div className="max-w-3xl mx-auto px-6 py-8">
-            <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-40 mb-3">[ DEPLOY ]</p>
+            <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-100 mb-3">[ DEPLOY ]</p>
             <h1 className="font-mono text-3xl font-bold tracking-[-0.03em] uppercase text-white mb-2">CREATE VAULT</h1>
-            <p className="font-mono text-xs text-white/60">
-              INSTITUTIONAL RWA SEALED-BID AUCTION — IMMUTABLE PARAMETERS
-            </p>
+            <p className="font-mono text-xs text-white">INSTITUTIONAL RWA SEALED-BID AUCTION — IMMUTABLE PARAMETERS</p>
             {!isConnected && (
-              <p className="font-mono text-[10px] uppercase opacity-50 mt-3 border border-white inline-block px-3 py-1.5">
+              <p className="font-mono text-[10px] uppercase opacity-100 mt-3 border border-white inline-block px-3 py-1.5">
                 ⚠ CONNECT WALLET TO DEPLOY
               </p>
             )}
@@ -351,7 +351,7 @@ export default function CreateAuctionPage() {
             <div className={section === "basic" ? "" : "hidden"}>
               {/* Auction Info */}
               <div className="border border-white border-t-0 p-6">
-                <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/60 mb-6">AUCTION INFO</p>
+                <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white mb-6">AUCTION INFO</p>
                 <div className="space-y-4">
                   <div>
                     <label className={labelClass}>TITLE {req}</label>
@@ -377,7 +377,7 @@ export default function CreateAuctionPage() {
 
               {/* Timing */}
               <div className="border border-white border-t-0 p-6">
-                <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/60 mb-6">TIMING</p>
+                <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white mb-6">TIMING</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className={labelClass}>COMMIT DURATION (H) {req}</label>
@@ -408,7 +408,7 @@ export default function CreateAuctionPage() {
                       placeholder="0"
                       className={inputClass}
                     />
-                    <p className="font-mono text-[9px] text-white/50 mt-1">BIDDING STARTS AFTER THIS WINDOW</p>
+                    <p className="font-mono text-[9px] text-white mt-1">BIDDING STARTS AFTER THIS WINDOW</p>
                   </div>
                   <div>
                     <label className={labelClass}>REQUIRED DEPOSIT (ADI) {req}</label>
@@ -426,7 +426,7 @@ export default function CreateAuctionPage() {
 
               {/* Access */}
               <div className="border border-white border-t-0 p-6">
-                <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/60 mb-6">ACCESS CONTROL</p>
+                <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white mb-6">ACCESS CONTROL</p>
                 <div className="space-y-4">
                   <div>
                     <label className={labelClass}>WHITELISTED BIDDERS (COMMA-SEPARATED) {req}</label>
@@ -461,7 +461,7 @@ export default function CreateAuctionPage() {
             <div className={section === "compliance" ? "" : "hidden"}>
               {/* Asset Proof */}
               <div className="border border-white border-t-0 p-6">
-                <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/60 mb-6">ASSET PROOF</p>
+                <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white mb-6">ASSET PROOF</p>
                 <div className="space-y-4">
                   <div>
                     <label className={labelClass}>LEGAL DOCUMENT URL / IPFS HASH</label>
@@ -470,7 +470,7 @@ export default function CreateAuctionPage() {
                       placeholder="ipfs://Qm... or https://..."
                       className={inputClass}
                     />
-                    <p className="font-mono text-[9px] text-white/50 mt-1">HASHED ON-CHAIN AS IMMUTABLE ASSET PROOF</p>
+                    <p className="font-mono text-[9px] text-white mt-1">HASHED ON-CHAIN AS IMMUTABLE ASSET PROOF</p>
                   </div>
                   <div>
                     <label className={labelClass}>DECLARED ASSET VALUE (ADI)</label>
@@ -482,7 +482,7 @@ export default function CreateAuctionPage() {
                       placeholder="100"
                       className={inputClass}
                     />
-                    <p className="font-mono text-[9px] text-white/50 mt-1">
+                    <p className="font-mono text-[9px] text-white mt-1">
                       CREATOR BOND:{" "}
                       {bondAmount === 0n
                         ? "NONE (no value declared)"
@@ -496,7 +496,7 @@ export default function CreateAuctionPage() {
                       placeholder="0x... (notary / custodian / multisig)"
                       className={inputClass}
                     />
-                    <p className="font-mono text-[9px] text-white/50 mt-1">
+                    <p className="font-mono text-[9px] text-white mt-1">
                       CONFIRMS REAL-WORLD ASSET DELIVERY TO RELEASE PAYMENT
                     </p>
                   </div>
@@ -505,7 +505,7 @@ export default function CreateAuctionPage() {
 
               {/* Jurisdiction */}
               <div className="border border-white border-t-0 p-6">
-                <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/60 mb-6">
+                <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white mb-6">
                   JURISDICTION & ACCREDITATION
                 </p>
                 <div className="space-y-4">
@@ -535,7 +535,7 @@ export default function CreateAuctionPage() {
             {/* ── SETTLEMENT SECTION ── */}
             <div className={section === "settlement" ? "" : "hidden"}>
               <div className="border border-white border-t-0 p-6">
-                <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/60 mb-6">
+                <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white mb-6">
                   SETTLEMENT PARAMETERS
                 </p>
                 <div className="grid grid-cols-2 gap-4">
@@ -548,7 +548,7 @@ export default function CreateAuctionPage() {
                       placeholder="48"
                       className={inputClass}
                     />
-                    <p className="font-mono text-[9px] text-white/50 mt-1">TIME FOR WINNER TO SUBMIT PAYMENT</p>
+                    <p className="font-mono text-[9px] text-white mt-1">TIME FOR WINNER TO SUBMIT PAYMENT</p>
                   </div>
                   <div>
                     <label className={labelClass}>ORACLE TIMEOUT (DAYS)</label>
@@ -559,7 +559,7 @@ export default function CreateAuctionPage() {
                       placeholder="30"
                       className={inputClass}
                     />
-                    <p className="font-mono text-[9px] text-white/50 mt-1">MAX DAYS FOR ORACLE TO CONFIRM DELIVERY</p>
+                    <p className="font-mono text-[9px] text-white mt-1">MAX DAYS FOR ORACLE TO CONFIRM DELIVERY</p>
                   </div>
                 </div>
 
@@ -579,14 +579,14 @@ export default function CreateAuctionPage() {
                       </label>
                     ))}
                   </div>
-                  <p className="font-mono text-[9px] text-white/50 mt-1">
+                  <p className="font-mono text-[9px] text-white mt-1">
                     DDSC = UAE CENTRAL BANK-LICENSED AED STABLECOIN ON ADI CHAIN · ELIMINATES ETH PRICE RISK
                   </p>
                 </div>
 
                 <div className="mt-6 p-4 border border-white/20 bg-white/5">
-                  <p className="font-mono text-[10px] uppercase text-white/70 mb-3">SETTLEMENT FLOW</p>
-                  <div className="space-y-1 font-mono text-[10px] text-white/60">
+                  <p className="font-mono text-[10px] uppercase text-white mb-3">SETTLEMENT FLOW</p>
+                  <div className="space-y-1 font-mono text-[10px] text-white">
                     <p>1. AUCTION SETTLES → WINNER ANNOUNCED</p>
                     <p>2. WINNER HAS [PAYMENT WINDOW] TO SUBMIT FULL PAYMENT</p>
                     <p>3. ORACLE CONFIRMS REAL-WORLD DELIVERY</p>

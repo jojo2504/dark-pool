@@ -220,7 +220,7 @@ export function BidPanel({
 
   // ─── Styles ──────────────────────────────────────────────────────────────────
   const inputClass =
-    "w-full px-4 py-3 bg-black border border-white font-mono text-xs text-white placeholder:text-white/20 focus:outline-none focus:bg-white focus:text-black transition-all duration-100";
+    "w-full px-4 py-3 bg-black border border-white/50 font-mono text-xs text-white placeholder:text-white/40 focus:outline-none focus:border-white transition-all duration-100";
 
   return (
     <>
@@ -232,21 +232,21 @@ export function BidPanel({
               <span className="font-mono text-xs font-bold tracking-[0.1em] uppercase">CONFLICT ATTESTATION</span>
               <button
                 onClick={() => setShowAttestModal(false)}
-                className="font-mono text-[10px] uppercase opacity-30 hover:opacity-100"
+                className="font-mono text-[10px] uppercase opacity-100 hover:opacity-100"
               >
                 [CLOSE]
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="font-mono text-[10px] uppercase opacity-50 leading-relaxed">
+              <p className="font-mono text-[10px] uppercase opacity-100 leading-relaxed">
                 REGULATORY REQUIREMENT — YOU MUST ATTEST NO CONFLICT OF INTEREST BEFORE BIDDING
               </p>
               <div className="border border-white/20 p-4 bg-white/5">
-                <p className="font-mono text-[11px] leading-relaxed text-white/80 italic">
+                <p className="font-mono text-[11px] leading-relaxed text-white italic">
                   &ldquo;{CONFLICT_STATEMENT}&rdquo;
                 </p>
               </div>
-              <p className="font-mono text-[10px] uppercase opacity-40">
+              <p className="font-mono text-[10px] uppercase opacity-100">
                 SIGNING THIS CREATES A CRYPTOGRAPHIC RECORD ON-CHAIN. THIS ATTESTATION IS LEGALLY BINDING.
               </p>
               <button
@@ -268,7 +268,7 @@ export function BidPanel({
           <span className="font-mono text-xs font-bold tracking-[0.1em] uppercase">
             {isOpen ? "SUBMIT BID" : isReveal ? "REVEAL BID" : "CLOSED"}
           </span>
-          <span className="font-mono text-[10px] tracking-[0.1em] uppercase opacity-40">
+          <span className="font-mono text-[10px] tracking-[0.1em] uppercase opacity-100">
             {isOpen ? formatTimeLeft(secsToClose) : isReveal ? formatTimeLeft(secsToRevealEnd) : "—"}
           </span>
         </div>
@@ -277,18 +277,20 @@ export function BidPanel({
           {/* Stats */}
           <div className="flex border border-white">
             <div className="flex-1 p-4 border-r border-white">
-              <p className="font-mono text-[9px] tracking-[0.2em] uppercase opacity-30 mb-1">DEPOSIT</p>
+              <p className="font-mono text-[9px] tracking-[0.2em] uppercase opacity-100 mb-1">DEPOSIT</p>
               <p className="font-mono text-sm font-bold">{formatWei(depositRequired)}</p>
             </div>
             <div className="flex-1 p-4">
-              <p className="font-mono text-[9px] tracking-[0.2em] uppercase opacity-30 mb-1">BIDS</p>
+              <p className="font-mono text-[9px] tracking-[0.2em] uppercase opacity-100 mb-1">BIDS</p>
               <p className="font-mono text-sm font-bold">{Number(bidCount)}</p>
             </div>
           </div>
 
           {/* Not connected */}
           {!isConnected && (isOpen || isReveal) && (
-            <p className="font-mono text-[11px] uppercase text-center opacity-30 py-4">CONNECT WALLET TO PARTICIPATE</p>
+            <p className="font-mono text-[11px] uppercase text-center opacity-100 py-4">
+              CONNECT WALLET TO PARTICIPATE
+            </p>
           )}
 
           {/* KYB Gate */}
@@ -297,7 +299,7 @@ export function BidPanel({
               <span className="font-mono text-[9px] uppercase text-yellow-400 border border-yellow-400 px-1.5 py-0.5">
                 KYB REQUIRED
               </span>
-              <p className="font-mono text-[10px] uppercase opacity-60 leading-relaxed mt-2">
+              <p className="font-mono text-[10px] uppercase opacity-100 leading-relaxed mt-2">
                 THIS AUCTION REQUIRES INSTITUTIONAL KYB VERIFICATION BEFORE BIDDING.
               </p>
               <Link
@@ -315,7 +317,7 @@ export function BidPanel({
               <span className="font-mono text-[9px] uppercase text-orange-400 border border-orange-400 px-1.5 py-0.5">
                 ACCREDITED INVESTOR ONLY
               </span>
-              <p className="font-mono text-[10px] uppercase opacity-60 leading-relaxed mt-2">
+              <p className="font-mono text-[10px] uppercase opacity-100 leading-relaxed mt-2">
                 THIS VAULT REQUIRES VERIFIED ACCREDITATION STATUS. CONTACT YOUR COMPLIANCE OFFICER.
               </p>
             </div>
@@ -324,10 +326,10 @@ export function BidPanel({
           {/* Conflict Attestation Gate */}
           {isConnected && attestBlocked && !accreditBlocked && (
             <div className="border border-white/30 p-4 space-y-3">
-              <span className="font-mono text-[9px] uppercase opacity-60 border border-white/40 px-1.5 py-0.5">
+              <span className="font-mono text-[9px] uppercase opacity-100 border border-white/40 px-1.5 py-0.5">
                 STEP REQUIRED
               </span>
-              <p className="font-mono text-[10px] uppercase opacity-60 leading-relaxed mt-2">
+              <p className="font-mono text-[10px] uppercase opacity-100 leading-relaxed mt-2">
                 A SIGNED CONFLICT-OF-INTEREST ATTESTATION IS REQUIRED BEFORE BIDDING.
               </p>
               <button
@@ -351,7 +353,7 @@ export function BidPanel({
           {isOpen && !userHasCommitted && !isCommitSuccess && canBid && (
             <div className="space-y-3">
               <div>
-                <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-50 block mb-2">
+                <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 block mb-2">
                   BID PRICE (ETH)
                 </label>
                 <input
@@ -364,7 +366,7 @@ export function BidPanel({
                 />
               </div>
               <div>
-                <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-50 block mb-2">
+                <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 block mb-2">
                   STORAGE ROOT
                 </label>
                 <input
@@ -377,16 +379,16 @@ export function BidPanel({
               </div>
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-50">SALT</label>
+                  <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100">SALT</label>
                   <button
                     onClick={() => setSalt(randomBytes32())}
-                    className="font-mono text-[10px] uppercase opacity-30 hover:opacity-100 transition-opacity"
+                    className="font-mono text-[10px] uppercase opacity-100 hover:opacity-100 transition-opacity"
                   >
                     [REGEN]
                   </button>
                 </div>
                 <div
-                  className="border border-white px-4 py-3 font-mono text-[10px] opacity-40 truncate cursor-pointer hover:opacity-100 transition-all duration-100"
+                  className="border border-white px-4 py-3 font-mono text-[10px] opacity-100 truncate cursor-pointer hover:opacity-100 transition-all duration-100"
                   onClick={() => {
                     navigator.clipboard.writeText(salt);
                     toast.success("Salt copied");
@@ -394,7 +396,7 @@ export function BidPanel({
                 >
                   {salt}
                 </div>
-                <p className="font-mono text-[10px] uppercase opacity-30 mt-1">
+                <p className="font-mono text-[10px] uppercase opacity-100 mt-1">
                   ⚠ SAVE THIS SALT — YOU NEED IT TO REVEAL
                 </p>
               </div>
@@ -409,7 +411,7 @@ export function BidPanel({
               )}
               {!marketData && loadingMarket && (
                 <div className="border border-white/10 p-3">
-                  <p className="font-mono text-[9px] uppercase opacity-30 animate-pulse">
+                  <p className="font-mono text-[9px] uppercase opacity-100 animate-pulse">
                     LOADING MARKET DATA FOR AI ANALYSIS...
                   </p>
                 </div>
@@ -429,7 +431,7 @@ export function BidPanel({
           {(isCommitSuccess || (isOpen && userHasCommitted)) && !isReveal && (
             <div className="border border-white p-6 text-center">
               <p className="font-mono text-xs font-bold uppercase tracking-[0.1em] mb-1">BID COMMITTED</p>
-              <p className="font-mono text-[10px] uppercase opacity-40">REVEAL AFTER AUCTION CLOSES</p>
+              <p className="font-mono text-[10px] uppercase opacity-100">REVEAL AFTER AUCTION CLOSES</p>
             </div>
           )}
 
@@ -437,12 +439,12 @@ export function BidPanel({
           {isReveal && userHasCommitted && !userHasRevealed && !isRevealSuccess && canBid && (
             <div className="space-y-3">
               <div className="border border-white p-4">
-                <p className="font-mono text-[10px] uppercase opacity-60">
+                <p className="font-mono text-[10px] uppercase opacity-100">
                   REVEAL PHASE OPEN — ENTER EXACT PRICE AND SALT
                 </p>
               </div>
               <div>
-                <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-50 block mb-2">
+                <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 block mb-2">
                   COMMITTED PRICE (ETH)
                 </label>
                 <input
@@ -455,7 +457,7 @@ export function BidPanel({
                 />
               </div>
               <div>
-                <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-50 block mb-2">
+                <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 block mb-2">
                   SALT (BYTES32)
                 </label>
                 <input
@@ -480,13 +482,13 @@ export function BidPanel({
           {(isRevealSuccess || (isReveal && userHasRevealed)) && (
             <div className="border border-white p-6 text-center">
               <p className="font-mono text-xs font-bold uppercase tracking-[0.1em] mb-1">BID REVEALED</p>
-              <p className="font-mono text-[10px] uppercase opacity-40">AWAITING SETTLEMENT</p>
+              <p className="font-mono text-[10px] uppercase opacity-100">AWAITING SETTLEMENT</p>
             </div>
           )}
 
           {/* Closed / Settled / Cancelled */}
           {!isOpen && !isReveal && (
-            <div className="py-4 text-center font-mono text-[11px] uppercase opacity-30">
+            <div className="py-4 text-center font-mono text-[11px] uppercase opacity-100">
               {phase === VaultPhase.SETTLED
                 ? "AUCTION SETTLED — WINNER SELECTED"
                 : phase === VaultPhase.CANCELLED

@@ -17,7 +17,7 @@ export function FooterSection() {
           {/* Brand */}
           <div>
             <p className="font-mono text-sm font-bold tracking-[0.1em] uppercase text-white mb-2">DARK POOL</p>
-            <p className="font-mono text-[11px] text-white opacity-30 max-w-[280px] leading-relaxed">
+            <p className="font-mono text-[11px] text-white opacity-100 max-w-[280px] leading-relaxed">
               Sealed-bid auctions with cryptographic fairness. Immutable rules. Trustless on-chain settlement.
             </p>
           </div>
@@ -38,10 +38,10 @@ export function FooterSection() {
 
         {/* Bottom */}
         <div className="border-t border-white py-5 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="font-mono text-[10px] tracking-[0.1em] uppercase text-white opacity-20">
+          <p className="font-mono text-[10px] tracking-[0.1em] uppercase text-white opacity-100">
             © {new Date().getFullYear()} DARK POOL
           </p>
-          <p className="font-mono text-[10px] tracking-[0.1em] uppercase text-white opacity-20">
+          <p className="font-mono text-[10px] tracking-[0.1em] uppercase text-white opacity-100">
             EVM COMPATIBLE — COMMIT-REVEAL PROTOCOL
           </p>
         </div>

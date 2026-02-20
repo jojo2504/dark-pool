@@ -61,14 +61,14 @@ export function HowItWorks() {
               transition={{ delay: i * 0.1 }}
               className="border-b border-white py-8 flex items-start gap-8 group hover:opacity-60 hover:px-6 transition-all duration-100"
             >
-              <span className="font-mono text-3xl sm:text-5xl font-bold tracking-[-0.04em] opacity-20 group-hover:opacity-40 min-w-[60px] sm:min-w-[80px]">
+              <span className="font-mono text-3xl sm:text-5xl font-bold tracking-[-0.04em] opacity-100 group-hover:opacity-40 min-w-[60px] sm:min-w-[80px]">
                 {step.id}
               </span>
               <div className="flex-1">
                 <h3 className="font-mono text-base sm:text-lg font-bold uppercase tracking-[0.05em] mb-2">
                   <EncryptedText text={step.title} revealDelayMs={90} flipDelayMs={60} />
                 </h3>
-                <p className="font-mono text-xs sm:text-sm leading-relaxed opacity-60 group-hover:opacity-80">
+                <p className="font-mono text-xs sm:text-sm leading-relaxed opacity-100 group-hover:opacity-80">
                   {step.description}
                 </p>
               </div>

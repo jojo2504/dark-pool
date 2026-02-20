@@ -81,11 +81,11 @@ export function CompetitivenessWidget({
 
   return (
     <div className="border border-white p-6">
-      <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-30 mb-4">AI COMPETITIVENESS ANALYSIS</p>
+      <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-100 mb-4">AI COMPETITIVENESS ANALYSIS</p>
 
       {/* Isolation disclaimer */}
       <div className="border border-white/10 p-3 mb-4">
-        <p className="font-mono text-[9px] uppercase opacity-40 leading-relaxed">
+        <p className="font-mono text-[9px] uppercase opacity-100 leading-relaxed">
           DATA ISOLATION: THIS ANALYSIS USES ONLY YOUR OWN DATA + PUBLIC HISTORICAL MARKET STATISTICS. NO COMPETITOR
           BIDS ARE VISIBLE. POWERED BY DECENTRALIZED 0G COMPUTE.
         </p>
@@ -135,7 +135,7 @@ export function CompetitivenessWidget({
               { label: "WIN PROB", value: `${analysis.winProbabilityEstimate}%` },
             ].map((s, i) => (
               <div key={s.label} className={`border border-white p-3 text-center ${i > 0 ? "border-l-0" : ""}`}>
-                <p className="font-mono text-[8px] uppercase opacity-30 mb-1">{s.label}</p>
+                <p className="font-mono text-[8px] uppercase opacity-100 mb-1">{s.label}</p>
                 <p className="font-mono text-sm font-bold">{s.value}</p>
               </div>
             ))}
@@ -143,24 +143,24 @@ export function CompetitivenessWidget({
 
           {/* Recommendation */}
           <div className="border border-white border-t-0 p-4">
-            <p className="font-mono text-[9px] uppercase opacity-30 mb-2">RECOMMENDATION</p>
+            <p className="font-mono text-[9px] uppercase opacity-100 mb-2">RECOMMENDATION</p>
             <p className="font-mono text-xs opacity-80">{analysis.recommendation}</p>
           </div>
 
           {/* Detail */}
           <div className="border border-white border-t-0 p-4">
-            <p className="font-mono text-[9px] uppercase opacity-30 mb-2">ANALYSIS</p>
-            <p className="font-mono text-[10px] opacity-60 leading-relaxed">{analysis.detailedExplanation}</p>
+            <p className="font-mono text-[9px] uppercase opacity-100 mb-2">ANALYSIS</p>
+            <p className="font-mono text-[10px] opacity-100 leading-relaxed">{analysis.detailedExplanation}</p>
           </div>
 
           {/* Risk + Range */}
           <div className="grid grid-cols-2 gap-0">
             <div className={`border ${RISK_STYLE[analysis.riskAssessment]} p-3`}>
-              <p className="font-mono text-[8px] uppercase opacity-40 mb-1">RISK</p>
+              <p className="font-mono text-[8px] uppercase opacity-100 mb-1">RISK</p>
               <p className="font-mono text-xs font-bold uppercase">{analysis.riskAssessment}</p>
             </div>
             <div className="border border-white border-l-0 p-3">
-              <p className="font-mono text-[8px] uppercase opacity-30 mb-1">SUGGESTED RANGE</p>
+              <p className="font-mono text-[8px] uppercase opacity-100 mb-1">SUGGESTED RANGE</p>
               <p className="font-mono text-xs font-bold">
                 {analysis.suggestedPriceRange.min} — {analysis.suggestedPriceRange.max}
               </p>
@@ -169,7 +169,7 @@ export function CompetitivenessWidget({
 
           {/* Confidence */}
           <div className="border border-white border-t-0 p-3 text-center">
-            <p className="font-mono text-[8px] uppercase opacity-30">
+            <p className="font-mono text-[8px] uppercase opacity-100">
               CONFIDENCE: {analysis.confidenceLevel.toUpperCase()} • DECENTRALIZED INFERENCE VIA 0G COMPUTE
             </p>
           </div>

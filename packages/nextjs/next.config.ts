@@ -27,7 +27,14 @@ const nextConfig: NextConfig = {
     return config;
   },
   // Server-side external packages (used by both webpack and turbopack)
-  serverExternalPackages: ["pino-pretty", "lokijs", "encoding", "@0glabs/0g-serving-broker"],
+  serverExternalPackages: [
+    "pino-pretty",
+    "lokijs",
+    "encoding",
+    "@0glabs/0g-serving-broker",
+    "@prisma/adapter-pg",
+    "pg",
+  ],
 };
 
 const isIpfs = process.env.NEXT_PUBLIC_IPFS_BUILD === "true";

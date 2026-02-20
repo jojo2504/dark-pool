@@ -17,7 +17,38 @@ const ABI = parseAbi([
   "function token1() external view returns (address)",
 ]);
 
+/**
+ * CoinGecko ID mapping for non-ETH native currencies.
+ * Add entries here for chains whose native token isn't tradeable on Uniswap V2.
+ */
+const COINGECKO_IDS: Record<string, string> = {
+  A0GI: "zero-gravity",
+};
+
+/**
+ * Fetch the USD price of a token from CoinGecko's free API.
+ * Returns 0 on failure so the UI gracefully hides the USD value.
+ */
+const fetchPriceFromCoinGecko = async (coingeckoId: string): Promise<number> => {
+  try {
+    const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${coingeckoId}&vs_currencies=usd`);
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return data[coingeckoId]?.usd ?? 0;
+  } catch (error) {
+    console.error(`fetchPriceFromCoinGecko - Error fetching ${coingeckoId} price:`, error);
+    return 0;
+  }
+};
+
 export const fetchPriceFromUniswap = async (targetNetwork: ChainWithAttributes): Promise<number> => {
+  // ── CoinGecko path: for native currencies not on Uniswap V2 (e.g. 0G / A0GI) ──
+  const coingeckoId = COINGECKO_IDS[targetNetwork.nativeCurrency.symbol];
+  if (coingeckoId) {
+    return fetchPriceFromCoinGecko(coingeckoId);
+  }
+
+  // ── Uniswap V2 path: ETH and tokens with a mainnet ERC-20 representation ──
   if (
     targetNetwork.nativeCurrency.symbol !== "ETH" &&
     targetNetwork.nativeCurrency.symbol !== "SEP" &&

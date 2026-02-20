@@ -101,8 +101,8 @@ export function PostRevealReport({
   if (!report) {
     return (
       <div className="border border-white p-6">
-        <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-30 mb-4">AI POST-REVEAL ANALYSIS</p>
-        <p className="font-mono text-[10px] opacity-40 mb-4 leading-relaxed">
+        <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-100 mb-4">AI POST-REVEAL ANALYSIS</p>
+        <p className="font-mono text-[10px] opacity-100 mb-4 leading-relaxed">
           GENERATE AN AI-POWERED ANALYSIS OF REVEALED BIDS — COLLUSION DETECTION, PRICE DISPERSION, AND MARKET HEALTH.
           ALL DATA IS POST-REVEAL AND PUBLIC ON-CHAIN.
         </p>
@@ -127,7 +127,7 @@ export function PostRevealReport({
       {/* Header */}
       <div className="p-6 border-b border-white/10">
         <div className="flex items-center justify-between">
-          <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-30">AI POST-REVEAL REPORT</p>
+          <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-100">AI POST-REVEAL REPORT</p>
           <button
             onClick={generateReport}
             disabled={loading}
@@ -150,14 +150,14 @@ export function PostRevealReport({
       {/* Collusion risk */}
       <div className={`p-4 border-b border-white/10 ${RISK_COLORS[report.collusionRisk]}`}>
         <div className="flex items-center justify-between mb-2">
-          <p className="font-mono text-[9px] uppercase opacity-60">COLLUSION RISK</p>
+          <p className="font-mono text-[9px] uppercase opacity-100">COLLUSION RISK</p>
           <span className="font-mono text-xs font-bold uppercase">{report.collusionRisk}</span>
         </div>
         <p className="font-mono text-[10px] opacity-70 leading-relaxed">{report.collusionExplanation}</p>
         {report.collusionIndicators.length > 0 && (
           <div className="mt-3 space-y-1">
             {report.collusionIndicators.map((ind, i) => (
-              <p key={i} className="font-mono text-[9px] opacity-40">
+              <p key={i} className="font-mono text-[9px] opacity-100">
                 → {ind}
               </p>
             ))}
@@ -167,18 +167,18 @@ export function PostRevealReport({
 
       {/* Price Dispersion */}
       <div className="p-4 border-b border-white/10">
-        <p className="font-mono text-[9px] uppercase opacity-30 mb-3">PRICE DISPERSION</p>
+        <p className="font-mono text-[9px] uppercase opacity-100 mb-3">PRICE DISPERSION</p>
         <div className="grid grid-cols-2 gap-0 mb-3">
           <div className="border border-white/10 p-2">
-            <p className="font-mono text-[8px] uppercase opacity-30 mb-1">SPREAD</p>
+            <p className="font-mono text-[8px] uppercase opacity-100 mb-1">SPREAD</p>
             <p className="font-mono text-xs font-bold">{report.priceDispersion.spreadPercent}%</p>
           </div>
           <div className="border border-white/10 border-l-0 p-2">
-            <p className="font-mono text-[8px] uppercase opacity-30 mb-1">STD DEV</p>
+            <p className="font-mono text-[8px] uppercase opacity-100 mb-1">STD DEV</p>
             <p className="font-mono text-xs font-bold">{report.priceDispersion.standardDeviation}</p>
           </div>
         </div>
-        <p className="font-mono text-[10px] opacity-50 leading-relaxed">{report.priceDispersion.interpretation}</p>
+        <p className="font-mono text-[10px] opacity-100 leading-relaxed">{report.priceDispersion.interpretation}</p>
         {report.priceDispersion.outliers.length > 0 && (
           <div className="mt-2 space-y-1">
             {report.priceDispersion.outliers.map((o, i) => (
@@ -193,7 +193,7 @@ export function PostRevealReport({
       {/* Market Health */}
       <div className="p-4 border-b border-white/10">
         <div className="flex items-center justify-between">
-          <p className="font-mono text-[9px] uppercase opacity-30">MARKET HEALTH</p>
+          <p className="font-mono text-[9px] uppercase opacity-100">MARKET HEALTH</p>
           <p className="font-mono text-sm font-bold">{report.marketHealthScore}/100</p>
         </div>
         <HealthBar score={report.marketHealthScore} />
@@ -201,24 +201,24 @@ export function PostRevealReport({
 
       {/* Winner Justification */}
       <div className="p-4 border-b border-white/10">
-        <p className="font-mono text-[9px] uppercase opacity-30 mb-2">WINNER JUSTIFICATION</p>
-        <p className="font-mono text-[10px] opacity-60 leading-relaxed">{report.winnerJustification}</p>
+        <p className="font-mono text-[9px] uppercase opacity-100 mb-2">WINNER JUSTIFICATION</p>
+        <p className="font-mono text-[10px] opacity-100 leading-relaxed">{report.winnerJustification}</p>
       </div>
 
       {/* Reveal Behavior */}
       <div className="p-4 border-b border-white/10">
-        <p className="font-mono text-[9px] uppercase opacity-30 mb-2">REVEAL BEHAVIOR</p>
-        <p className="font-mono text-[10px] opacity-60 leading-relaxed">{report.revealBehaviorAnalysis}</p>
+        <p className="font-mono text-[9px] uppercase opacity-100 mb-2">REVEAL BEHAVIOR</p>
+        <p className="font-mono text-[10px] opacity-100 leading-relaxed">{report.revealBehaviorAnalysis}</p>
       </div>
 
       {/* Recommendations */}
       <div className="p-4 border-b border-white/10">
-        <p className="font-mono text-[9px] uppercase opacity-30 mb-3">NEXT CYCLE RECOMMENDATIONS</p>
+        <p className="font-mono text-[9px] uppercase opacity-100 mb-3">NEXT CYCLE RECOMMENDATIONS</p>
         <div className="space-y-2">
           {report.nextCycleRecommendations.map((rec, i) => (
             <div key={i} className="flex items-start gap-2">
-              <span className="font-mono text-[9px] opacity-30 mt-0.5">{i + 1}.</span>
-              <p className="font-mono text-[10px] opacity-60 leading-relaxed">{rec}</p>
+              <span className="font-mono text-[9px] opacity-100 mt-0.5">{i + 1}.</span>
+              <p className="font-mono text-[10px] opacity-100 leading-relaxed">{rec}</p>
             </div>
           ))}
         </div>
@@ -235,7 +235,7 @@ export function PostRevealReport({
 
       {/* Footer */}
       <div className="p-3 text-center">
-        <p className="font-mono text-[8px] uppercase opacity-20">
+        <p className="font-mono text-[8px] uppercase opacity-100">
           DECENTRALIZED INFERENCE VIA 0G COMPUTE • ALL DATA POST-REVEAL ON-CHAIN
         </p>
       </div>

@@ -73,7 +73,7 @@ function VaultRow({
               {cfg.badge}
             </span>
             {isOpen && (
-              <span className="font-mono text-[10px] tracking-[0.1em] uppercase opacity-60">
+              <span className="font-mono text-[10px] tracking-[0.1em] uppercase opacity-100">
                 {formatTimeLeft(secsLeft)}
               </span>
             )}
@@ -98,20 +98,20 @@ function VaultRow({
 
         {/* Title + address */}
         <h3 className="font-mono text-sm font-bold uppercase tracking-[0.02em] mb-1">{vault.title || "UNNAMED"}</h3>
-        <p className="font-mono text-[10px] opacity-30 mb-4 truncate">{vault.address}</p>
+        <p className="font-mono text-[10px] opacity-100 mb-4 truncate">{vault.address}</p>
 
         {/* Stats */}
         <div className="flex items-center justify-between font-mono text-xs mb-2">
           <span>
-            <span className="opacity-40">DEPOSIT: </span>
+            <span className="opacity-100">DEPOSIT: </span>
             <span className="font-bold">{formatWei(vault.depositRequired)}</span>
           </span>
           <span>
-            <span className="opacity-40">BIDS: </span>
+            <span className="opacity-100">BIDS: </span>
             <span className="font-bold">{Number(vault.bidCount)}</span>
           </span>
           <span>
-            <span className="opacity-40">CLOSE: </span>
+            <span className="opacity-100">CLOSE: </span>
             <span className="font-bold">{formatTimestamp(vault.closeTime)}</span>
           </span>
         </div>
@@ -120,18 +120,18 @@ function VaultRow({
         {isSettled && vault.winner !== ZERO_ADDR && (
           <div className="border-t border-white/10 pt-3 mt-3 flex items-center justify-between font-mono text-xs">
             <span>
-              <span className="opacity-40">WINNER: </span>
+              <span className="opacity-100">WINNER: </span>
               <span className={`font-bold ${isWinner ? "text-green-400" : ""}`}>
                 {isWinner ? "YOU" : formatAddress(vault.winner)}
               </span>
             </span>
             <span>
-              <span className="opacity-40">PRICE: </span>
+              <span className="opacity-100">PRICE: </span>
               <span className="font-bold">{formatWei(vault.winningPrice)}</span>
             </span>
             <span>
-              <span className="opacity-40">PAYMENT: </span>
-              <span className={vault.paymentSubmitted ? "text-green-400" : "opacity-40"}>
+              <span className="opacity-100">PAYMENT: </span>
+              <span className={vault.paymentSubmitted ? "text-green-400" : "opacity-100"}>
                 {vault.paymentSubmitted ? "RECEIVED" : "PENDING"}
               </span>
             </span>
@@ -186,11 +186,13 @@ function VaultDataRow({
   });
 
   if (isLoading) {
-    return <div className="border border-white p-6 font-mono text-xs opacity-30 animate-pulse">LOADING VAULT...</div>;
+    return <div className="border border-white p-6 font-mono text-xs opacity-100 animate-pulse">LOADING VAULT...</div>;
   }
 
   if (isError || !data) {
-    return <div className="border border-white p-6 font-mono text-xs opacity-30">ERROR: {address.slice(0, 14)}...</div>;
+    return (
+      <div className="border border-white p-6 font-mono text-xs opacity-100">ERROR: {address.slice(0, 14)}...</div>
+    );
   }
 
   const title = (data[0].result ?? "UNNAMED") as string;
@@ -272,7 +274,7 @@ export default function MyAuctionsPage() {
     abi: FACTORY_ABI,
     functionName: "getVaultsByBuyer",
     args: userAddress ? [userAddress] : undefined,
-    query: { enabled: !!userAddress },
+    query: { enabled: !!userAddress, refetchOnMount: "always" as const, staleTime: 0 },
   });
 
   // Fetch ALL vaults to check participation
@@ -280,7 +282,7 @@ export default function MyAuctionsPage() {
     address: FACTORY_ADDRESS,
     abi: FACTORY_ABI,
     functionName: "getAllVaults",
-    query: { enabled: !!userAddress && activeTab === "participated" },
+    query: { enabled: !!userAddress && activeTab === "participated", refetchOnMount: "always" as const, staleTime: 0 },
   });
 
   const createdList = (createdVaults as `0x${string}`[] | undefined) ?? [];
@@ -305,11 +307,11 @@ export default function MyAuctionsPage() {
     return (
       <div className="min-h-screen bg-black pt-14 flex items-center justify-center">
         <div className="border border-white p-12 text-center max-w-md">
-          <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-30 mb-4">MY AUCTIONS</p>
-          <p className="font-mono text-xs opacity-60 mb-6">CONNECT YOUR WALLET TO VIEW YOUR AUCTIONS</p>
+          <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-100 mb-4">MY AUCTIONS</p>
+          <p className="font-mono text-xs opacity-100 mb-6">CONNECT YOUR WALLET TO VIEW YOUR AUCTIONS</p>
           <Link
             href="/auctions"
-            className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-30 hover:opacity-100 transition-opacity"
+            className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 hover:opacity-100 transition-opacity"
           >
             ← BROWSE ALL AUCTIONS
           </Link>
@@ -327,11 +329,11 @@ export default function MyAuctionsPage() {
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link
             href="/auctions"
-            className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-30 hover:opacity-100 transition-opacity"
+            className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 hover:opacity-100 transition-opacity"
           >
             ← ALL AUCTIONS
           </Link>
-          <span className="font-mono text-[10px] tracking-[0.1em] uppercase opacity-20">
+          <span className="font-mono text-[10px] tracking-[0.1em] uppercase opacity-100">
             {formatAddress(userAddress)}
           </span>
         </div>
@@ -343,7 +345,7 @@ export default function MyAuctionsPage() {
           <h1 className="font-mono text-2xl sm:text-3xl font-bold tracking-[-0.03em] uppercase text-white">
             MY AUCTIONS
           </h1>
-          <p className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-30 mt-2">
+          <p className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 mt-2">
             MANAGE YOUR CREATED AND PARTICIPATED AUCTIONS
           </p>
         </div>
@@ -357,14 +359,14 @@ export default function MyAuctionsPage() {
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`flex-1 px-6 py-4 font-mono text-[10px] tracking-[0.15em] uppercase transition-all
-                ${activeTab === tab.key ? "bg-white text-black font-bold" : "opacity-40 hover:opacity-80"}`}
+                ${activeTab === tab.key ? "bg-white text-black font-bold" : "opacity-100 hover:opacity-80"}`}
             >
               {tab.label}
               {tab.key === "created" && !createdLoading && (
-                <span className="ml-2 opacity-60">[{createdList.length}]</span>
+                <span className="ml-2 opacity-100">[{createdList.length}]</span>
               )}
               {tab.key === "participated" && participationCheckComplete && (
-                <span className="ml-2 opacity-60">[{participatedVaults.length}]</span>
+                <span className="ml-2 opacity-100">[{participatedVaults.length}]</span>
               )}
             </button>
           ))}
@@ -378,11 +380,11 @@ export default function MyAuctionsPage() {
           <div>
             {createdLoading ? (
               <div className="border border-white p-12 text-center">
-                <p className="font-mono text-xs uppercase opacity-30 animate-pulse">LOADING YOUR VAULTS...</p>
+                <p className="font-mono text-xs uppercase opacity-100 animate-pulse">LOADING YOUR VAULTS...</p>
               </div>
             ) : createdList.length === 0 ? (
               <div className="border border-white p-12 text-center">
-                <p className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-30 mb-4">
+                <p className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 mb-4">
                   NO AUCTIONS CREATED YET
                 </p>
                 <Link
@@ -418,18 +420,18 @@ export default function MyAuctionsPage() {
 
             {allVaultsLoading || !participationCheckComplete ? (
               <div className="border border-white p-12 text-center">
-                <p className="font-mono text-xs uppercase opacity-30 animate-pulse">
+                <p className="font-mono text-xs uppercase opacity-100 animate-pulse">
                   SCANNING {allVaultsList.length} VAULTS FOR YOUR BIDS...
                 </p>
                 {allVaultsList.length > 0 && (
-                  <p className="font-mono text-[9px] uppercase opacity-20 mt-2">
+                  <p className="font-mono text-[9px] uppercase opacity-100 mt-2">
                     {checkedVaults.size} / {allVaultsList.length} CHECKED
                   </p>
                 )}
               </div>
             ) : participatedVaults.length === 0 ? (
               <div className="border border-white p-12 text-center">
-                <p className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-30 mb-4">
+                <p className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 mb-4">
                   NO PARTICIPATIONS FOUND
                 </p>
                 <Link

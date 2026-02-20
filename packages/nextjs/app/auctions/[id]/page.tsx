@@ -72,7 +72,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center font-mono text-xs uppercase opacity-30">
+      <div className="min-h-screen bg-black flex items-center justify-center font-mono text-xs uppercase opacity-100">
         LOADING...
       </div>
     );
@@ -82,8 +82,8 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="border border-white p-8 text-center">
-          <p className="font-mono text-xs uppercase opacity-50 mb-2">FAILED TO LOAD VAULT</p>
-          <Link href="/auctions" className="font-mono text-[10px] uppercase opacity-30 hover:opacity-100">
+          <p className="font-mono text-xs uppercase opacity-100 mb-2">FAILED TO LOAD VAULT</p>
+          <Link href="/auctions" className="font-mono text-[10px] uppercase opacity-100 hover:opacity-100">
             [BACK]
           </Link>
         </div>
@@ -170,7 +170,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-4">
           <Link
             href="/auctions"
-            className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-30 hover:opacity-100 transition-opacity"
+            className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 hover:opacity-100 transition-opacity"
           >
             ← ALL AUCTIONS
           </Link>
@@ -222,7 +222,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
             { label: "REVEAL", value: formatTimestamp(revealDeadline) },
           ].map((s, i) => (
             <div key={s.label} className={`px-6 py-6 ${i < 3 ? "border-r border-white" : ""}`}>
-              <p className="font-mono text-[9px] tracking-[0.2em] uppercase opacity-30 mb-1">{s.label}</p>
+              <p className="font-mono text-[9px] tracking-[0.2em] uppercase opacity-100 mb-1">{s.label}</p>
               <p className="font-mono text-xs font-bold">{s.value}</p>
             </div>
           ))}
@@ -235,17 +235,17 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
         <div className="lg:col-span-3 space-y-0">
           {/* Description */}
           <div className="border border-white p-6">
-            <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-30 mb-4">ABOUT</p>
+            <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-100 mb-4">ABOUT</p>
             <p className="font-mono text-xs leading-relaxed opacity-70">{description || "NO DESCRIPTION PROVIDED."}</p>
           </div>
 
           {/* Details table */}
           <div className="border border-white border-t-0">
-            <p className="px-6 pt-6 font-mono text-[10px] tracking-[0.2em] uppercase opacity-30 mb-4">VAULT DETAILS</p>
+            <p className="px-6 pt-6 font-mono text-[10px] tracking-[0.2em] uppercase opacity-100 mb-4">VAULT DETAILS</p>
             <div className="divide-y divide-white/10">
               {rows.map(r => (
                 <div key={r.label} className="flex justify-between px-6 py-3 font-mono text-xs">
-                  <span className="opacity-40">{r.label}</span>
+                  <span className="opacity-100">{r.label}</span>
                   <span className="font-bold truncate ml-4 max-w-[60%] text-right">{r.value}</span>
                 </div>
               ))}
@@ -255,15 +255,15 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
           {/* ECIES key */}
           {eciesKey && (
             <div className="border border-white border-t-0 p-6">
-              <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-30 mb-3">ECIES PUBLIC KEY</p>
-              <p className="font-mono text-[10px] opacity-40 break-all">{eciesKey}</p>
+              <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-100 mb-3">ECIES PUBLIC KEY</p>
+              <p className="font-mono text-[10px] opacity-100 break-all">{eciesKey}</p>
             </div>
           )}
 
           {/* Buyer actions */}
           {isBuyer && (canTriggerReveal || canSettle || canCancel || canClaimBuyerDefault || canReleaseCreatorBond) && (
             <div className="border border-white border-t-0 p-6">
-              <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-30 mb-4">BUYER ACTIONS</p>
+              <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-100 mb-4">BUYER ACTIONS</p>
               <div className="flex flex-wrap gap-0">
                 {canTriggerReveal && (
                   <button
@@ -317,10 +317,10 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
           {/* Settlement panel */}
           {phase === VaultPhase.SETTLED && (
             <div className="border border-white border-t-0 p-6">
-              <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-30 mb-4">SETTLEMENT FLOW</p>
+              <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-100 mb-4">SETTLEMENT FLOW</p>
               {isWinner && canSubmitPayment && (
                 <div className="mb-4">
-                  <p className="font-mono text-[10px] uppercase opacity-60 mb-2">
+                  <p className="font-mono text-[10px] uppercase opacity-100 mb-2">
                     YOU WON — SUBMIT PAYMENT OF {formatWei(winningBidAmount)}
                   </p>
                   <button
@@ -334,7 +334,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
               )}
               {isOracle && canConfirmDelivery && (
                 <div className="mb-4">
-                  <p className="font-mono text-[10px] uppercase opacity-60 mb-2">ORACLE: CONFIRM ASSET DELIVERY</p>
+                  <p className="font-mono text-[10px] uppercase opacity-100 mb-2">ORACLE: CONFIRM ASSET DELIVERY</p>
                   <button
                     onClick={() => sendTx("confirmDelivery", [], undefined, "Delivery confirmed — payment released")}
                     disabled={isTxPending}
@@ -346,7 +346,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
               )}
               {canDisputeDelivery && (
                 <div className="mb-4">
-                  <p className="font-mono text-[10px] uppercase opacity-60 mb-2">DISPUTE DELIVERY</p>
+                  <p className="font-mono text-[10px] uppercase opacity-100 mb-2">DISPUTE DELIVERY</p>
                   <button
                     onClick={() => sendTx("disputeDelivery", [], undefined, "Dispute filed")}
                     disabled={isTxPending}
@@ -358,12 +358,12 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
               )}
               <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 gap-2 font-mono text-[10px]">
                 <div
-                  className={`p-2 border ${paymentSubmitted ? "border-green-400/40 text-green-400" : "border-white/10 opacity-40"}`}
+                  className={`p-2 border ${paymentSubmitted ? "border-green-400/40 text-green-400" : "border-white/10 opacity-100"}`}
                 >
                   PAYMENT: {paymentSubmitted ? "RECEIVED" : "AWAITING"}
                 </div>
                 <div
-                  className={`p-2 border ${delivered ? "border-green-400/40 text-green-400" : "border-white/10 opacity-40"}`}
+                  className={`p-2 border ${delivered ? "border-green-400/40 text-green-400" : "border-white/10 opacity-100"}`}
                 >
                   DELIVERY: {delivered ? "CONFIRMED" : "PENDING"}
                 </div>
@@ -385,12 +385,12 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
               requiresAccreditation={requiresAccreditation}
             />
             <div className="border border-white border-t-0 p-4">
-              <p className="font-mono text-[10px] uppercase opacity-30 leading-relaxed">
+              <p className="font-mono text-[10px] uppercase opacity-100 leading-relaxed">
                 SEALED-BID GUARANTEE: YOUR BID IS COMMITTED AS A HASH. PRICE HIDDEN UNTIL REVEAL. NON-REVEALERS LOSE
                 DEPOSIT.
               </p>
               {oracle !== ZERO_ADDRESS && (
-                <p className="font-mono text-[10px] uppercase opacity-20 leading-relaxed mt-2">
+                <p className="font-mono text-[10px] uppercase opacity-100 leading-relaxed mt-2">
                   ORACLE-GATED SETTLEMENT. PAYMENT HELD IN ESCROW UNTIL DELIVERY CONFIRMED.
                 </p>
               )}
