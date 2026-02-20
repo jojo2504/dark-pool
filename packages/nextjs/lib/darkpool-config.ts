@@ -12,3 +12,6 @@ export const SETTLEMENT_TOKENS: Record<string, { label: string; address: `0x${st
   ETH: { label: "ETH (Native)", address: "0x0000000000000000000000000000000000000000" },
   DDSC: { label: "DDSC (AED Stablecoin)", address: DDSC_ADDRESS },
 };
+
+// ─── Zero address ─────────────────────────────────────────────────────────────
+export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as `0x${string}`;

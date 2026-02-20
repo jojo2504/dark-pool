@@ -13,13 +13,6 @@ interface VaultCardProps {
   statusFilter?: string;
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  open: "OPEN",
-  reveal: "REVEAL",
-  settled: "SETTLED",
-  cancelled: "CANCELLED",
-};
-
 export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCardProps) {
   const contract = { address, abi: VAULT_ABI } as const;
 
@@ -87,7 +80,7 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <span className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-40 group-hover:opacity-60">
-                {STATUS_LABEL[status]}
+                {status.toUpperCase()}
               </span>
               {isPaused && (
                 <span className="font-mono text-[9px] uppercase border border-red-400 text-red-400 px-1 py-0.5">

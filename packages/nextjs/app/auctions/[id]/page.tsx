@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { useAccount, useReadContracts, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { BidPanel } from "~~/components/darkpool/BidPanel";
 import { VAULT_ABI } from "~~/lib/contracts";
+import { ZERO_ADDRESS } from "~~/lib/darkpool-config";
 import { PHASE_LABEL, VaultPhase, phaseToStatus } from "~~/lib/types";
 import { formatAddress, formatTimestamp, formatWei } from "~~/lib/utils";
 
@@ -118,7 +119,6 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
   const isBuyer = userAddress?.toLowerCase() === buyer.toLowerCase();
   const isWinner = userAddress?.toLowerCase() === winner.toLowerCase();
   const isOracle = userAddress?.toLowerCase() === oracle.toLowerCase();
-  const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
   const ZERO_HASH = "0x0000000000000000000000000000000000000000000000000000000000000000";
   const nowSec = Math.floor(Date.now() / 1000);
   const secsToClose = Math.max(0, Number(closeTime) - nowSec);
@@ -145,14 +145,14 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
     { label: "REVEAL DL", value: formatTimestamp(revealDeadline) },
     { label: "BID COUNT", value: String(Number(bidCount)) },
     { label: "CREATOR BOND", value: creatorBond > 0n ? formatWei(creatorBond) : "NONE" },
-    ...(oracle !== ZERO_ADDR ? [{ label: "ORACLE", value: formatAddress(oracle) }] : []),
+    ...(oracle !== ZERO_ADDRESS ? [{ label: "ORACLE", value: formatAddress(oracle) }] : []),
     ...(biddingStartTime > 0n ? [{ label: "BIDDING OPENS", value: formatTimestamp(biddingStartTime) }] : []),
     ...(phase === VaultPhase.SETTLED
       ? [
           { label: "WINNER", value: formatAddress(winner) },
           { label: "WINNING PRICE", value: formatWei(winningPrice) },
           { label: "WINNING BID", value: formatWei(winningBidAmount) },
-          ...(secondBidder !== ZERO_ADDR ? [{ label: "BACKUP BIDDER", value: formatAddress(secondBidder) }] : []),
+          ...(secondBidder !== ZERO_ADDRESS ? [{ label: "BACKUP BIDDER", value: formatAddress(secondBidder) }] : []),
           { label: "PAYMENT", value: paymentSubmitted ? "SUBMITTED ✓" : "PENDING" },
           { label: "DELIVERY", value: delivered ? "CONFIRMED ✓" : "PENDING" },
           ...(settlementDeadline > 0n ? [{ label: "PAYMENT DL", value: formatTimestamp(settlementDeadline) }] : []),
@@ -382,7 +382,6 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
               revealDeadline={revealDeadline}
               depositRequired={depositRequired}
               bidCount={bidCount}
-              eciesKey={eciesKey}
               requiresAccreditation={requiresAccreditation}
             />
             <div className="border border-white border-t-0 p-4">
@@ -390,7 +389,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
                 SEALED-BID GUARANTEE: YOUR BID IS COMMITTED AS A HASH. PRICE HIDDEN UNTIL REVEAL. NON-REVEALERS LOSE
                 DEPOSIT.
               </p>
-              {oracle !== ZERO_ADDR && (
+              {oracle !== ZERO_ADDRESS && (
                 <p className="font-mono text-[10px] uppercase opacity-20 leading-relaxed mt-2">
                   ORACLE-GATED SETTLEMENT. PAYMENT HELD IN ESCROW UNTIL DELIVERY CONFIRMED.
                 </p>

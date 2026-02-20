@@ -15,7 +15,7 @@ import {
 import { CompetitivenessWidget } from "~~/components/ai/CompetitivenessWidget";
 import { useMarketHistoricalData } from "~~/hooks/useMarketHistoricalData";
 import { FACTORY_ABI, VAULT_ABI } from "~~/lib/contracts";
-import { FACTORY_ADDRESS } from "~~/lib/darkpool-config";
+import { FACTORY_ADDRESS, ZERO_ADDRESS } from "~~/lib/darkpool-config";
 import { VaultPhase } from "~~/lib/types";
 import { formatTimeLeft, formatWei } from "~~/lib/utils";
 
@@ -26,7 +26,6 @@ interface BidPanelProps {
   revealDeadline: bigint;
   depositRequired: bigint;
   bidCount: bigint;
-  eciesKey: string;
   requiresAccreditation: boolean;
 }
 
@@ -52,13 +51,11 @@ export function BidPanel({
   const chainId = useChainId();
 
   // ─── Contract reads ──────────────────────────────────────────────────────────
-  const ZERO = "0x0000000000000000000000000000000000000000" as `0x${string}`;
-
   const { data: isVerified } = useReadContract({
     address: FACTORY_ADDRESS,
     abi: FACTORY_ABI,
     functionName: "verified",
-    args: [userAddress ?? ZERO],
+    args: [userAddress ?? ZERO_ADDRESS],
     query: { enabled: !!userAddress },
   });
 
@@ -66,7 +63,7 @@ export function BidPanel({
     address: FACTORY_ADDRESS,
     abi: FACTORY_ABI,
     functionName: "isAccredited",
-    args: [userAddress ?? ZERO],
+    args: [userAddress ?? ZERO_ADDRESS],
     query: { enabled: !!userAddress && requiresAccreditation },
   });
 
@@ -74,7 +71,7 @@ export function BidPanel({
     address: vaultAddress,
     abi: VAULT_ABI,
     functionName: "conflictAttestationSubmitted",
-    args: [userAddress ?? ZERO],
+    args: [userAddress ?? ZERO_ADDRESS],
     query: { enabled: !!userAddress },
   });
 
@@ -82,7 +79,7 @@ export function BidPanel({
     address: vaultAddress,
     abi: VAULT_ABI,
     functionName: "bids",
-    args: [userAddress ?? ZERO],
+    args: [userAddress ?? ZERO_ADDRESS],
     query: { enabled: !!userAddress },
   });
 

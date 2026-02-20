@@ -36,8 +36,6 @@
     "ethers": "^6.16.0",
     "framer-motion": "^12.34.2",
     "gsap": "^3.14.2",
-    "kubo-rpc-client": "~5.0.2",
-    "lucide-react": "^0.575.0",
     "next": "~15.2.8",
     "next-nprogress-bar": "~2.3.13",
     "next-themes": "~0.3.0",

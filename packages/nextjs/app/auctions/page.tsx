@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAccount, useReadContract } from "wagmi";
 import { VaultCard } from "~~/components/darkpool/VaultCard";
 import { FACTORY_ABI } from "~~/lib/contracts";
-import { FACTORY_ADDRESS } from "~~/lib/darkpool-config";
+import { FACTORY_ADDRESS, ZERO_ADDRESS } from "~~/lib/darkpool-config";
 
 type StatusFilter = "all" | "open" | "reveal" | "settled" | "cancelled";
 
@@ -33,12 +33,11 @@ export default function AuctionsPage() {
   });
 
   const { address: userAddress, isConnected } = useAccount();
-  const ZERO = "0x0000000000000000000000000000000000000000" as `0x${string}`;
   const { data: isKybVerified } = useReadContract({
     address: FACTORY_ADDRESS,
     abi: FACTORY_ABI,
     functionName: "verified",
-    args: [userAddress ?? ZERO],
+    args: [userAddress ?? ZERO_ADDRESS],
     query: { enabled: !!userAddress },
   });
   const showKybBanner = isConnected && isKybVerified === false;

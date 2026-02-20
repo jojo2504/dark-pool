@@ -6,17 +6,7 @@
 import { FACTORY_ABI } from "./contracts";
 import { createPublicClient, createWalletClient, http, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-
-// ADI Chain definition (not in the viem/chains registry yet)
-const adiChain = {
-  id: 99999,
-  name: "ADI Chain Testnet",
-  nativeCurrency: { name: "ADI", symbol: "ADI", decimals: 18 },
-  rpcUrls: {
-    default: { http: ["https://rpc.ab.testnet.adifoundation.ai/"] },
-    public: { http: ["https://rpc.ab.testnet.adifoundation.ai/"] },
-  },
-} as const;
+import { adiTestnet } from "~~/scaffold.config";
 
 function getAdminAccount() {
   const pk = process.env.PLATFORM_ADMIN_PRIVATE_KEY;
@@ -40,7 +30,7 @@ export async function onChainVerifyInstitution(
 
   const walletClient = createWalletClient({
     account,
-    chain: adiChain,
+    chain: adiTestnet,
     transport: http(),
   });
 
@@ -60,7 +50,7 @@ export async function onChainRevokeInstitution(walletAddress: `0x${string}`): Pr
 
   const walletClient = createWalletClient({
     account,
-    chain: adiChain,
+    chain: adiTestnet,
     transport: http(),
   });
 
@@ -78,7 +68,7 @@ export async function onChainRevokeInstitution(walletAddress: `0x${string}`): Pr
 export async function isVerifiedOnChain(walletAddress: `0x${string}`): Promise<boolean> {
   const factoryAddress = getFactoryAddress();
   const publicClient = createPublicClient({
-    chain: adiChain,
+    chain: adiTestnet,
     transport: http(),
   });
   return publicClient.readContract({
