@@ -35,8 +35,8 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 const inputClass =
-  "w-full px-4 py-3 bg-black border border-white font-mono text-xs text-white placeholder:text-white/20 focus:outline-none focus:bg-white focus:text-black transition-all duration-100";
-const labelClass = "font-mono text-[10px] tracking-[0.15em] uppercase opacity-50 block mb-2";
+  "w-full px-4 py-3 bg-black/80 border border-white/30 font-mono text-xs text-white placeholder:text-white/60 focus:outline-none focus:border-white focus:bg-black transition-all duration-100";
+const labelClass = "font-mono text-[10px] tracking-[0.15em] uppercase text-white/80 block mb-2";
 
 function computeBond(declaredEth: string): bigint {
   try {
@@ -183,7 +183,7 @@ export default function CreateAuctionPage() {
 
   const tabClass = (active: boolean) =>
     `px-4 py-2 font-mono text-[10px] tracking-[0.15em] uppercase transition-all cursor-pointer ${
-      active ? "bg-white text-black" : "text-white/40 hover:text-white"
+      active ? "bg-white text-black" : "text-white/60 hover:text-white"
     }`;
 
   return (
@@ -279,7 +279,9 @@ export default function CreateAuctionPage() {
           <div className="max-w-3xl mx-auto px-6 py-8">
             <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-40 mb-3">[ DEPLOY ]</p>
             <h1 className="font-mono text-3xl font-bold tracking-[-0.03em] uppercase text-white mb-2">CREATE VAULT</h1>
-            <p className="font-mono text-xs opacity-40">INSTITUTIONAL RWA SEALED-BID AUCTION — IMMUTABLE PARAMETERS</p>
+            <p className="font-mono text-xs text-white/60">
+              INSTITUTIONAL RWA SEALED-BID AUCTION — IMMUTABLE PARAMETERS
+            </p>
             {!isConnected && (
               <p className="font-mono text-[10px] uppercase opacity-50 mt-3 border border-white inline-block px-3 py-1.5">
                 ⚠ CONNECT WALLET TO DEPLOY
@@ -310,7 +312,7 @@ export default function CreateAuctionPage() {
             <div className={section === "basic" ? "" : "hidden"}>
               {/* Auction Info */}
               <div className="border border-white border-t-0 p-6">
-                <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-30 mb-6">AUCTION INFO</p>
+                <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/60 mb-6">AUCTION INFO</p>
                 <div className="space-y-4">
                   <div>
                     <label className={labelClass}>TITLE</label>
@@ -336,7 +338,7 @@ export default function CreateAuctionPage() {
 
               {/* Timing */}
               <div className="border border-white border-t-0 p-6">
-                <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-30 mb-6">TIMING</p>
+                <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/60 mb-6">TIMING</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className={labelClass}>COMMIT DURATION (H)</label>
@@ -367,7 +369,7 @@ export default function CreateAuctionPage() {
                       placeholder="0"
                       className={inputClass}
                     />
-                    <p className="font-mono text-[9px] opacity-30 mt-1">BIDDING STARTS AFTER THIS WINDOW</p>
+                    <p className="font-mono text-[9px] text-white/50 mt-1">BIDDING STARTS AFTER THIS WINDOW</p>
                   </div>
                   <div>
                     <label className={labelClass}>REQUIRED DEPOSIT (ETH)</label>
@@ -385,7 +387,7 @@ export default function CreateAuctionPage() {
 
               {/* Access */}
               <div className="border border-white border-t-0 p-6">
-                <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-30 mb-6">ACCESS CONTROL</p>
+                <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/60 mb-6">ACCESS CONTROL</p>
                 <div className="space-y-4">
                   <div>
                     <label className={labelClass}>WHITELISTED BIDDERS (COMMA-SEPARATED)</label>
@@ -395,12 +397,12 @@ export default function CreateAuctionPage() {
                       placeholder="0xABC..., 0xDEF..."
                       className={inputClass + " resize-none"}
                     />
-                    <p className="font-mono text-[9px] opacity-30 mt-1">MUST ALSO PASS KYB VERIFICATION</p>
+                    <p className="font-mono text-[9px] text-white/50 mt-1">MUST ALSO PASS KYB VERIFICATION</p>
                   </div>
                   <div>
                     <label className={labelClass}>BUYER ECIES PUBLIC KEY</label>
                     <input {...register("buyerECIESPubKey")} placeholder="04A1B2C3..." className={inputClass} />
-                    <p className="font-mono text-[9px] opacity-30 mt-1">FOR OFF-CHAIN ENCRYPTED BID STORAGE</p>
+                    <p className="font-mono text-[9px] text-white/50 mt-1">FOR OFF-CHAIN ENCRYPTED BID STORAGE</p>
                   </div>
                 </div>
               </div>
@@ -410,7 +412,7 @@ export default function CreateAuctionPage() {
             <div className={section === "compliance" ? "" : "hidden"}>
               {/* Asset Proof */}
               <div className="border border-white border-t-0 p-6">
-                <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-30 mb-6">ASSET PROOF</p>
+                <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/60 mb-6">ASSET PROOF</p>
                 <div className="space-y-4">
                   <div>
                     <label className={labelClass}>LEGAL DOCUMENT URL / IPFS HASH</label>
@@ -419,7 +421,7 @@ export default function CreateAuctionPage() {
                       placeholder="ipfs://Qm... or https://..."
                       className={inputClass}
                     />
-                    <p className="font-mono text-[9px] opacity-30 mt-1">HASHED ON-CHAIN AS IMMUTABLE ASSET PROOF</p>
+                    <p className="font-mono text-[9px] text-white/50 mt-1">HASHED ON-CHAIN AS IMMUTABLE ASSET PROOF</p>
                   </div>
                   <div>
                     <label className={labelClass}>DECLARED ASSET VALUE (ETH)</label>
@@ -431,7 +433,7 @@ export default function CreateAuctionPage() {
                       placeholder="100"
                       className={inputClass}
                     />
-                    <p className="font-mono text-[9px] opacity-30 mt-1">
+                    <p className="font-mono text-[9px] text-white/50 mt-1">
                       CREATOR BOND:{" "}
                       {bondAmount === 0n
                         ? "NONE (no value declared)"
@@ -445,7 +447,7 @@ export default function CreateAuctionPage() {
                       placeholder="0x... (notary / custodian / multisig)"
                       className={inputClass}
                     />
-                    <p className="font-mono text-[9px] opacity-30 mt-1">
+                    <p className="font-mono text-[9px] text-white/50 mt-1">
                       CONFIRMS REAL-WORLD ASSET DELIVERY TO RELEASE PAYMENT
                     </p>
                   </div>
@@ -454,7 +456,7 @@ export default function CreateAuctionPage() {
 
               {/* Jurisdiction */}
               <div className="border border-white border-t-0 p-6">
-                <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-30 mb-6">
+                <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/60 mb-6">
                   JURISDICTION & ACCREDITATION
                 </p>
                 <div className="space-y-4">
@@ -484,7 +486,7 @@ export default function CreateAuctionPage() {
             {/* ── SETTLEMENT SECTION ── */}
             <div className={section === "settlement" ? "" : "hidden"}>
               <div className="border border-white border-t-0 p-6">
-                <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-30 mb-6">
+                <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/60 mb-6">
                   SETTLEMENT PARAMETERS
                 </p>
                 <div className="grid grid-cols-2 gap-4">
@@ -497,7 +499,7 @@ export default function CreateAuctionPage() {
                       placeholder="48"
                       className={inputClass}
                     />
-                    <p className="font-mono text-[9px] opacity-30 mt-1">TIME FOR WINNER TO SUBMIT PAYMENT</p>
+                    <p className="font-mono text-[9px] text-white/50 mt-1">TIME FOR WINNER TO SUBMIT PAYMENT</p>
                   </div>
                   <div>
                     <label className={labelClass}>ORACLE TIMEOUT (DAYS)</label>
@@ -508,7 +510,7 @@ export default function CreateAuctionPage() {
                       placeholder="30"
                       className={inputClass}
                     />
-                    <p className="font-mono text-[9px] opacity-30 mt-1">MAX DAYS FOR ORACLE TO CONFIRM DELIVERY</p>
+                    <p className="font-mono text-[9px] text-white/50 mt-1">MAX DAYS FOR ORACLE TO CONFIRM DELIVERY</p>
                   </div>
                 </div>
 
@@ -528,14 +530,14 @@ export default function CreateAuctionPage() {
                       </label>
                     ))}
                   </div>
-                  <p className="font-mono text-[9px] opacity-30 mt-1">
+                  <p className="font-mono text-[9px] text-white/50 mt-1">
                     DDSC = UAE CENTRAL BANK-LICENSED AED STABLECOIN ON ADI CHAIN · ELIMINATES ETH PRICE RISK
                   </p>
                 </div>
 
                 <div className="mt-6 p-4 border border-white/20 bg-white/5">
-                  <p className="font-mono text-[10px] uppercase opacity-50 mb-3">SETTLEMENT FLOW</p>
-                  <div className="space-y-1 font-mono text-[10px] opacity-40">
+                  <p className="font-mono text-[10px] uppercase text-white/70 mb-3">SETTLEMENT FLOW</p>
+                  <div className="space-y-1 font-mono text-[10px] text-white/60">
                     <p>1. AUCTION SETTLES → WINNER ANNOUNCED</p>
                     <p>2. WINNER HAS [PAYMENT WINDOW] TO SUBMIT FULL PAYMENT</p>
                     <p>3. ORACLE CONFIRMS REAL-WORLD DELIVERY</p>
