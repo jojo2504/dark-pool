@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { gsap } from "gsap";
 import { GoArrowUpRight } from "react-icons/go";
+import { OGStatusWidget } from "~~/components/ai/OGStatusWidget";
 import { RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
 import "~~/styles/CardNav.css";
 
@@ -13,6 +14,7 @@ const NAV_ITEMS = [
     links: [
       { label: "Browse All", href: "/auctions", ariaLabel: "Browse all auctions" },
       { label: "Create New", href: "/auctions/create", ariaLabel: "Create a new auction" },
+      { label: "My Auctions", href: "/auctions/my-auctions", ariaLabel: "Manage your auctions" },
     ],
   },
   {
@@ -158,6 +160,7 @@ export function Header() {
             <Link href="/" className="logo-text" style={{ textDecoration: "none" }}>
               DARK POOL
             </Link>
+            <OGStatusWidget />
           </div>
 
           <div className="card-nav-cta-button">

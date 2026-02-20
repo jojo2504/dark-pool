@@ -12,6 +12,19 @@ import { FooterSection } from "~~/components/darkpool/FooterSection";
 import { BlockieAvatar } from "~~/components/scaffold-eth";
 import { wagmiConfig } from "~~/services/web3/wagmiConfig";
 
+// Polyfill localStorage for SSR — RainbowKit calls localStorage.getItem()
+// during server render (getRecentWalletIds). This no-op prevents the crash.
+if (typeof window === "undefined") {
+  (globalThis as any).localStorage = {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+    clear: () => {},
+    length: 0,
+    key: () => null,
+  };
+}
+
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
   return (
     <>

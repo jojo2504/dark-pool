@@ -15,6 +15,20 @@ export const adiTestnet = defineChain({
   testnet: true,
 });
 
+// ── 0G Galileo Testnet ────────────────────────────────────────────────────────
+export const ogGalileo = defineChain({
+  id: 16602,
+  name: "0G Galileo Testnet",
+  nativeCurrency: { name: "A0GI", symbol: "A0GI", decimals: 18 },
+  rpcUrls: {
+    default: { http: ["https://evmrpc-testnet.0g.ai"] },
+  },
+  blockExplorers: {
+    default: { name: "0G Explorer", url: "https://chainscan-galileo.0g.ai" },
+  },
+  testnet: true,
+});
+
 export type BaseConfig = {
   targetNetworks: readonly chains.Chain[];
   pollingInterval: number;
@@ -31,7 +45,8 @@ export const DEFAULT_ALCHEMY_API_KEY = "cR4WnXePioePZ5fFrnSiR";
 const scaffoldConfig = {
   // The networks on which your DApp is live
   //targetNetworks: [adiTestnet, chains.hardhat],
-  targetNetworks: [chains.sepolia, chains.hardhat],
+  //targetNetworks: [chains.sepolia, chains.hardhat],
+  targetNetworks: [ogGalileo],
   // The interval at which your front-end polls the RPC servers for new data
   pollingInterval: 4000,
   // This is ours Alchemy's default API key.
@@ -59,7 +74,7 @@ const scaffoldConfig = {
   // It's recommended to store it in an env variable:
   // .env.local for local testing, and in the Vercel/system env config for live apps.
   walletConnectProjectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || "3a8170812b534d0ff9d794f19a901d64",
-  onlyLocalBurnerWallet: true,
+  onlyLocalBurnerWallet: false,
 } as const satisfies ScaffoldConfig;
 
 export default scaffoldConfig;

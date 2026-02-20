@@ -12,6 +12,8 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
+import { CompetitivenessWidget } from "~~/components/ai/CompetitivenessWidget";
+import { useMarketHistoricalData } from "~~/hooks/useMarketHistoricalData";
 import { FACTORY_ABI, VAULT_ABI } from "~~/lib/contracts";
 import { FACTORY_ADDRESS } from "~~/lib/darkpool-config";
 import { VaultPhase } from "~~/lib/types";
@@ -91,6 +93,9 @@ export function BidPanel({
   const [revealPrice, setRevealPrice] = useState("");
   const [revealSalt, setRevealSalt] = useState("");
   const [showAttestModal, setShowAttestModal] = useState(false);
+
+  // Market data for AI competitiveness analysis
+  const { marketData, isLoading: loadingMarket } = useMarketHistoricalData();
 
   // ─── Derived ─────────────────────────────────────────────────────────────────
   const nowSec = Math.floor(Date.now() / 1000);
@@ -392,6 +397,23 @@ export function BidPanel({
                   ⚠ SAVE THIS SALT — YOU NEED IT TO REVEAL
                 </p>
               </div>
+
+              {/* AI Competitiveness Widget */}
+              {marketData && (
+                <CompetitivenessWidget
+                  providerPrice={parseFloat(priceEth) || 0}
+                  providerConditions={storageRoot}
+                  auctionCategory="RWA"
+                />
+              )}
+              {!marketData && loadingMarket && (
+                <div className="border border-white/10 p-3">
+                  <p className="font-mono text-[9px] uppercase opacity-30 animate-pulse">
+                    LOADING MARKET DATA FOR AI ANALYSIS...
+                  </p>
+                </div>
+              )}
+
               <button
                 onClick={handleCommit}
                 disabled={isCommitPending}
