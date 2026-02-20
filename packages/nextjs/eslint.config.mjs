@@ -12,6 +12,9 @@ const compat = new FlatCompat({
 
 export default defineConfig([
   {
+    ignores: ["lib/generated/**"],
+  },
+  {
     plugins: {
       prettier: prettierPlugin,
     },
