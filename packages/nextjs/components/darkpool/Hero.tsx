@@ -1,110 +1,112 @@
 "use client";
-import { motion } from "framer-motion";
-import Link from "next/link";
-import { ArrowRight, Lock, Shield, Zap } from "lucide-react";
-import { AuroraBackground } from "~~/components/ui/aurora-background";
-import { Spotlight } from "~~/components/ui/spotlight";
-import { FlipWords } from "~~/components/ui/flip-words";
-import { ShootingStars, StarsBackground } from "~~/components/ui/shooting-stars";
 
-const FLIP_WORDS = ["privacy", "fairness", "immutability", "trustless"];
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { EncryptedText } from "~~/components/darkpool/EncryptedText";
 
 export function Hero() {
-    return (
-        <AuroraBackground className="min-h-screen w-full pt-24 pb-12 overflow-hidden">
-            <StarsBackground />
-            <ShootingStars minDelay={1200} maxDelay={4000} />
-            <Spotlight className="-top-40 left-0 md:left-60 md:-top-20" fill="#00d4ff" />
+  return (
+    <section className="relative min-h-screen flex items-center justify-center bg-black pt-14">
+      {/* Grid lines background */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)",
+          backgroundSize: "80px 80px",
+        }}
+      />
 
-            <div className="relative z-10 flex flex-col items-center text-center px-4 max-w-5xl mx-auto">
-                {/* Badge */}
-                <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="mb-6 inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/5 text-xs font-medium text-cyan-400"
-                >
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                    Powered by Canton Network · USDCx only
-                </motion.div>
+      <div className="relative z-10 w-full max-w-5xl mx-auto px-6">
+        {/* Status line */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="font-mono text-[11px] tracking-[0.2em] uppercase mb-12"
+          style={{ color: "#ffffff", opacity: 0.4 }}
+        >
+          <EncryptedText text="[ SEALED-BID PROTOCOL ] — LIVE" revealDelayMs={75} flipDelayMs={60} />
+        </motion.div>
 
-                {/* Headline */}
-                <motion.h1
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2, duration: 0.7 }}
-                    className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.08] mb-4"
-                >
-                    Auctions built on
-                    <br />
-                    <FlipWords words={FLIP_WORDS} className="text-5xl sm:text-6xl lg:text-7xl font-bold" />
-                </motion.h1>
+        {/* Main headline */}
+        <motion.h1
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+          className="font-mono text-[clamp(2.5rem,8vw,6rem)] font-bold leading-[0.9] tracking-[-0.04em] uppercase text-white mb-8"
+        >
+          <EncryptedText text="DARK" revealDelayMs={150} flipDelayMs={60} />
+          <br />
+          <EncryptedText text="POOL" revealDelayMs={150} flipDelayMs={60} />
+        </motion.h1>
 
-                {/* Sub-headline */}
-                <motion.p
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.35, duration: 0.7 }}
-                    className="mt-4 max-w-2xl text-lg text-zinc-400 leading-relaxed"
-                >
-                    Sealed-bid auctions where every parameter is{" "}
-                    <span className="text-zinc-100 font-medium">cryptographically immutable</span> the moment you create them.
-                    Bids are locked in <span className="text-cyan-400 font-medium">USDCx</span> until the auction resolves — no
-                    surprises, no manipulation.
-                </motion.p>
+        {/* Divider */}
+        <motion.div
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{ delay: 0.5, duration: 0.4 }}
+          className="w-full h-px bg-white mb-8 origin-left"
+        />
 
-                {/* CTA buttons */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="mt-10 flex flex-col sm:flex-row items-center gap-4"
-                >
-                    <Link
-                        href="/auctions/create"
-                        className="group flex items-center gap-2 px-7 py-3.5 rounded-xl bg-cyan-500 text-black font-semibold text-sm hover:bg-cyan-400 transition-all duration-200 shadow-lg shadow-cyan-500/25"
-                    >
-                        Create an Auction
-                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </Link>
-                    <Link
-                        href="/auctions"
-                        className="flex items-center gap-2 px-7 py-3.5 rounded-xl border border-white/10 text-zinc-300 text-sm font-medium hover:bg-white/5 hover:border-white/20 transition-all duration-200"
-                    >
-                        Browse Auctions
-                    </Link>
-                </motion.div>
+        {/* Description */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          className="font-mono text-sm leading-relaxed max-w-lg text-white mb-12 space-y-1"
+        >
+          <p>
+            <EncryptedText text="Commit-reveal sealed-bid auctions on-chain." revealDelayMs={60} flipDelayMs={55} />
+          </p>
+          <p>
+            <EncryptedText text="Cryptographic fairness. Immutable rules." revealDelayMs={60} flipDelayMs={55} />
+          </p>
+          <p>
+            <EncryptedText text="No front-running. No information leakage." revealDelayMs={60} flipDelayMs={55} />
+          </p>
+        </motion.div>
 
-                {/* Trust indicators */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.7 }}
-                    className="mt-16 flex flex-wrap items-center justify-center gap-8 text-xs text-zinc-500"
-                >
-                    {[
-                        { icon: Lock, label: "Sealed bids — no front-running" },
-                        { icon: Shield, label: "Immutable auction rules" },
-                        { icon: Zap, label: "Instant USDCx settlement" },
-                    ].map(({ icon: Icon, label }) => (
-                        <div key={label} className="flex items-center gap-1.5">
-                            <Icon className="w-3.5 h-3.5 text-cyan-500/70" />
-                            {label}
-                        </div>
-                    ))}
-                </motion.div>
+        {/* CTA buttons */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          className="flex flex-wrap gap-0"
+        >
+          <Link
+            href="/auctions"
+            className="border border-white px-8 py-4 font-mono text-xs tracking-[0.15em] uppercase text-white hover:opacity-60 transition-all duration-100"
+          >
+            BROWSE AUCTIONS →
+          </Link>
+          <Link
+            href="/auctions/create"
+            className="border border-white border-l-0 px-8 py-4 font-mono text-xs tracking-[0.15em] uppercase bg-white text-black hover:opacity-80 transition-all duration-100"
+          >
+            CREATE VAULT
+          </Link>
+        </motion.div>
 
-                {/* Scroll indicator */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 1.2 }}
-                    className="mt-20 flex flex-col items-center gap-2"
-                >
-                    <div className="w-px h-12 bg-gradient-to-b from-transparent via-zinc-600 to-transparent" />
-                    <span className="text-xs text-zinc-600">scroll to explore</span>
-                </motion.div>
-            </div>
-        </AuroraBackground>
-    );
+        {/* Bottom status */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1 }}
+          className="absolute bottom-8 left-6 right-6 flex justify-between font-mono text-[10px] tracking-[0.15em] uppercase"
+          style={{ color: "#ffffff", opacity: 0.25 }}
+        >
+          <span>
+            <EncryptedText text="V1.0.0" revealDelayMs={110} flipDelayMs={60} />
+          </span>
+          <span>
+            <EncryptedText text="EVM COMPATIBLE" revealDelayMs={90} flipDelayMs={60} />
+          </span>
+          <span>
+            <EncryptedText text="COMMIT → REVEAL → SETTLE" revealDelayMs={75} flipDelayMs={60} />
+          </span>
+        </motion.div>
+      </div>
+    </section>
+  );
 }

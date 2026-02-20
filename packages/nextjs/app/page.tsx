@@ -1,12 +1,12 @@
-import { Hero } from "~~/components/darkpool/Hero";
-import { StatsSection } from "~~/components/darkpool/StatsSection";
-import { FeaturesSection } from "~~/components/darkpool/FeaturesSection";
-import { HowItWorks } from "~~/components/darkpool/HowItWorks";
 import { CTASection } from "~~/components/darkpool/CTASection";
+import { FeaturesSection } from "~~/components/darkpool/FeaturesSection";
+import { Hero } from "~~/components/darkpool/Hero";
+import { HowItWorks } from "~~/components/darkpool/HowItWorks";
+import { StatsSection } from "~~/components/darkpool/StatsSection";
 
 export default function HomePage() {
   return (
-    <main className="flex flex-col min-h-screen bg-[#050505]">
+    <main className="flex flex-col min-h-screen bg-black">
       <Hero />
       <StatsSection />
       <FeaturesSection />

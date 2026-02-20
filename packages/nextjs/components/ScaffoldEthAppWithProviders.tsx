@@ -7,18 +7,15 @@ import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
 import { useTheme } from "next-themes";
 import { Toaster } from "react-hot-toast";
 import { WagmiProvider } from "wagmi";
-import { FooterSection } from "~~/components/darkpool/FooterSection";
 import { Header } from "~~/components/Header";
+import { FooterSection } from "~~/components/darkpool/FooterSection";
 import { BlockieAvatar } from "~~/components/scaffold-eth";
-
 import { wagmiConfig } from "~~/services/web3/wagmiConfig";
 
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
-
-
   return (
     <>
-      <div className="flex flex-col min-h-screen bg-[#050505]">
+      <div className="flex flex-col min-h-screen bg-black">
         <Header />
         <main className="relative flex flex-col flex-1">{children}</main>
         <FooterSection />
@@ -27,10 +24,14 @@ const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
         position="bottom-right"
         toastOptions={{
           style: {
-            background: "#0d0d0d",
-            color: "#e4e4e7",
-            border: "1px solid rgba(255,255,255,0.06)",
-            fontSize: "13px",
+            background: "#000000",
+            color: "#ffffff",
+            border: "1px solid #ffffff",
+            borderRadius: "0",
+            fontSize: "11px",
+            fontFamily: "monospace",
+            textTransform: "uppercase" as const,
+            letterSpacing: "0.05em",
           },
         }}
       />

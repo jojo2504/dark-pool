@@ -1,7 +1,6 @@
 "use client";
+
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Loader2, Plus, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useReadContract } from "wagmi";
 import { VaultCard } from "~~/components/darkpool/VaultCard";
@@ -10,149 +9,118 @@ import { FACTORY_ADDRESS } from "~~/lib/darkpool-config";
 
 type StatusFilter = "all" | "open" | "reveal" | "settled" | "cancelled";
 
-const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
-    { value: "all", label: "All" },
-    { value: "open", label: "Open" },
-    { value: "reveal", label: "Reveal" },
-    { value: "settled", label: "Settled" },
-    { value: "cancelled", label: "Cancelled" },
+const FILTERS: { value: StatusFilter; label: string }[] = [
+  { value: "all", label: "ALL" },
+  { value: "open", label: "OPEN" },
+  { value: "reveal", label: "REVEAL" },
+  { value: "settled", label: "SETTLED" },
+  { value: "cancelled", label: "CANCELLED" },
 ];
 
 export default function AuctionsPage() {
-    const [search, setSearch] = useState("");
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-    const [showFilters, setShowFilters] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-    const {
-        data: vaultAddresses,
-        isLoading,
-        isError,
-        refetch,
-    } = useReadContract({
-        address: FACTORY_ADDRESS,
-        abi: FACTORY_ABI,
-        functionName: "getAllVaults",
-    });
+  const {
+    data: vaultAddresses,
+    isLoading,
+    isError,
+    refetch,
+  } = useReadContract({
+    address: FACTORY_ADDRESS,
+    abi: FACTORY_ABI,
+    functionName: "getAllVaults",
+  });
 
-    const addresses = (vaultAddresses ?? []) as `0x${string}`[];
+  const addresses = (vaultAddresses ?? []) as `0x${string}`[];
 
-    return (
-        <div className="min-h-screen bg-[#050505] pt-28 pb-20 px-4">
-            <div className="max-w-6xl mx-auto">
-                {/* Header */}
-                <motion.div
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8"
-                >
-                    <div>
-                        <h1 className="text-3xl font-bold text-white">Auctions</h1>
-                        <p className="text-zinc-500 text-sm mt-1">
-                            Sealed-bid commit-reveal vaults on-chain
-                            {addresses.length > 0 && (
-                                <span className="text-emerald-400 font-medium ml-1">· {addresses.length} total</span>
-                            )}
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2 self-start sm:self-auto">
-                        <button
-                            onClick={() => refetch()}
-                            className="p-2 rounded-xl border border-white/[0.08] text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] transition-all"
-                            title="Refresh"
-                        >
-                            <RefreshCw className="w-4 h-4" />
-                        </button>
-                        <Link
-                            href="/auctions/create"
-                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-500 text-black font-semibold text-sm hover:bg-cyan-400 transition-all shadow-lg shadow-cyan-500/20"
-                        >
-                            <Plus className="w-4 h-4" />
-                            New Auction
-                        </Link>
-                    </div>
-                </motion.div>
-
-                {/* Search + Filter bar */}
-                <motion.div
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.05 }}
-                    className="flex flex-col sm:flex-row gap-3 mb-6"
-                >
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                        <input
-                            type="text"
-                            placeholder="Search by vault address or title…"
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 focus:bg-white/[0.06] transition-all"
-                        />
-                    </div>
-
-                    <button
-                        onClick={() => setShowFilters(p => !p)}
-                        className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm transition-all ${showFilters
-                                ? "border-cyan-500/50 text-cyan-400 bg-cyan-500/10"
-                                : "border-white/[0.08] text-zinc-400 bg-white/[0.04] hover:border-white/20"
-                            }`}
-                    >
-                        <SlidersHorizontal className="w-4 h-4" />
-                        Filters
-                    </button>
-                </motion.div>
-
-                {/* Status filter pills */}
-                {showFilters && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="flex flex-wrap gap-2 mb-6">
-                        {STATUS_FILTERS.map(f => (
-                            <button
-                                key={f.value}
-                                onClick={() => setStatusFilter(f.value)}
-                                className={`px-4 py-1.5 rounded-full text-xs font-medium border transition-all ${statusFilter === f.value
-                                        ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-300"
-                                        : "bg-white/[0.03] border-white/[0.06] text-zinc-500 hover:text-zinc-300"
-                                    }`}
-                            >
-                                {f.label}
-                            </button>
-                        ))}
-                    </motion.div>
-                )}
-
-                {/* Content */}
-                {isLoading ? (
-                    <div className="flex items-center justify-center py-24 text-zinc-500">
-                        <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                        Loading vaults from chain…
-                    </div>
-                ) : isError ? (
-                    <div className="text-center py-24">
-                        <p className="text-red-400 text-sm mb-2">Failed to load vaults. Check your wallet connection and network.</p>
-                        <button onClick={() => refetch()} className="text-zinc-500 text-xs hover:text-zinc-300 underline">
-                            Retry
-                        </button>
-                    </div>
-                ) : addresses.length === 0 ? (
-                    <div className="text-center py-24 text-zinc-600">
-                        <p className="text-lg">No vaults deployed yet</p>
-                        <p className="text-sm mt-1">
-                            Be the first to{" "}
-                            <Link href="/auctions/create" className="text-cyan-400 hover:underline">
-                                create an auction
-                            </Link>
-                        </p>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {addresses
-                            .filter(addr => !search || addr.toLowerCase().includes(search.toLowerCase()))
-                            .map((addr, i) => (
-                                <VaultCard key={addr} address={addr} index={i} statusFilter={statusFilter} />
-                            ))}
-                    </div>
-                )}
-            </div>
+  return (
+    <div className="min-h-screen bg-black pt-14">
+      {/* Header bar */}
+      <div className="border-b border-white">
+        <div className="max-w-5xl mx-auto px-6 py-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-40 mb-3">[ BROWSE ]</p>
+            <h1 className="font-mono text-3xl font-bold tracking-[-0.03em] uppercase text-white">AUCTIONS</h1>
+            {addresses.length > 0 && <p className="font-mono text-xs opacity-40 mt-1">{addresses.length} TOTAL</p>}
+          </div>
+          <div className="flex gap-0">
+            <button
+              onClick={() => refetch()}
+              className="border border-white px-5 py-3 font-mono text-[10px] tracking-[0.15em] uppercase text-white hover:opacity-60 transition-all duration-100"
+            >
+              REFRESH
+            </button>
+            <Link
+              href="/auctions/create"
+              className="border border-white border-l-0 px-5 py-3 bg-white text-black font-mono text-[10px] tracking-[0.15em] uppercase font-bold hover:opacity-80 transition-all duration-100"
+            >
+              + NEW VAULT
+            </Link>
+          </div>
         </div>
-    );
+      </div>
+
+      {/* Filters + Search */}
+      <div className="border-b border-white">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div className="flex gap-0 border border-white">
+            {FILTERS.map(f => (
+              <button
+                key={f.value}
+                onClick={() => setStatusFilter(f.value)}
+                className={`px-4 py-2 font-mono text-[10px] tracking-[0.1em] uppercase border-r border-white last:border-r-0 transition-all duration-100 ${
+                  statusFilter === f.value ? "bg-white text-black" : "text-white hover:opacity-60"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="SEARCH ADDRESS..."
+            className="bg-black border border-white px-4 py-2 font-mono text-xs text-white placeholder:text-white/20 w-full sm:w-64 focus:outline-none focus:bg-white focus:text-black transition-all duration-100"
+          />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        {isLoading ? (
+          <p className="font-mono text-xs uppercase opacity-30 py-20 text-center">LOADING...</p>
+        ) : isError ? (
+          <div className="text-center py-20">
+            <p className="font-mono text-xs uppercase opacity-50 mb-2">FAILED TO LOAD VAULTS</p>
+            <button
+              onClick={() => refetch()}
+              className="font-mono text-[10px] uppercase opacity-30 hover:opacity-100 transition-opacity"
+            >
+              [RETRY]
+            </button>
+          </div>
+        ) : addresses.length === 0 ? (
+          <div className="text-center py-20">
+            <p className="font-mono text-sm uppercase opacity-40 mb-2">NO VAULTS DEPLOYED</p>
+            <Link
+              href="/auctions/create"
+              className="font-mono text-xs uppercase border-b border-white hover:opacity-60 transition-all px-1"
+            >
+              CREATE FIRST AUCTION
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-0">
+            {addresses
+              .filter(addr => !search || addr.toLowerCase().includes(search.toLowerCase()))
+              .map((addr, i) => (
+                <VaultCard key={addr} address={addr} index={i} statusFilter={statusFilter} />
+              ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

@@ -1,126 +1,84 @@
 "use client";
+
 import { motion } from "framer-motion";
-import { DollarSign, Gavel, Settings, Trophy } from "lucide-react";
+import { EncryptedText } from "~~/components/darkpool/EncryptedText";
 
 const STEPS = [
-    {
-        icon: Settings,
-        number: "01",
-        title: "Configure Your Auction",
-        description:
-            "Set every parameter: starting bid, reserve price, minimum increment, duration, anti-sniping rules, and visibility. These are permanently locked once you confirm.",
-        detail: "All rules become immutable on-chain",
-        color: "#00d4ff",
-    },
-    {
-        icon: Gavel,
-        number: "02",
-        title: "Bidders Lock USDCx",
-        description:
-            "Participants submit sealed bids. Their USDCx is locked in escrow for the duration — no withdrawals until the auction resolves. They can top up their bid at any time.",
-        detail: "Funds locked until resolution",
-        color: "#6366f1",
-    },
-    {
-        icon: Trophy,
-        number: "03",
-        title: "Auction Closes",
-        description:
-            "When the deadline hits (extended automatically if anti-sniping triggers), all sealed bids are revealed simultaneously. The highest valid bid wins.",
-        detail: "Simultaneous reveal — no front-running",
-        color: "#00d4ff",
-    },
-    {
-        icon: DollarSign,
-        number: "04",
-        title: "Instant Settlement",
-        description:
-            "The winner's USDCx is transferred to the seller. All losing bids are unlocked immediately. The full audit log is on-chain forever.",
-        detail: "Automatic, trustless settlement",
-        color: "#6366f1",
-    },
+  {
+    id: "01",
+    title: "Create Vault",
+    description: "Deploy an immutable ShadowBidVault contract. Set duration, deposit, allowed suppliers.",
+  },
+  {
+    id: "02",
+    title: "Commit Bid",
+    description: "Suppliers hash their price + salt and submit on-chain with ETH deposit. Bid remains sealed.",
+  },
+  {
+    id: "03",
+    title: "Reveal Phase",
+    description: "After close, suppliers reveal price and salt. Non-revealers forfeit their deposit.",
+  },
+  {
+    id: "04",
+    title: "Settlement",
+    description: "Smart contract selects winner deterministically. Deposits returned. Trustless execution.",
+  },
 ];
 
 export function HowItWorks() {
-    return (
-        <section className="relative py-32 px-4 overflow-hidden">
-            {/* Vertical gradient divider */}
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#080808] to-transparent" />
+  return (
+    <section id="how-it-works" className="border-t border-white bg-black px-6 py-20">
+      <div className="max-w-5xl mx-auto">
+        {/* Header */}
+        <div className="mb-16">
+          <motion.p
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 0.4 }}
+            viewport={{ once: true }}
+            className="font-mono text-[10px] tracking-[0.2em] uppercase mb-4"
+          >
+            <EncryptedText text="[ PROCESS ]" revealDelayMs={75} flipDelayMs={60} />
+          </motion.p>
+          <motion.h2
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="font-mono text-3xl sm:text-4xl font-bold tracking-[-0.03em] uppercase text-white"
+          >
+            <EncryptedText text="HOW IT WORKS" revealDelayMs={90} flipDelayMs={60} />
+          </motion.h2>
+        </div>
 
-            <div className="relative z-10 max-w-5xl mx-auto">
-                <div className="text-center mb-16">
-                    <motion.p
-                        initial={{ opacity: 0 }}
-                        whileInView={{ opacity: 1 }}
-                        viewport={{ once: true }}
-                        className="text-sm font-medium text-cyan-400 uppercase tracking-widest mb-3"
-                    >
-                        How It Works
-                    </motion.p>
-                    <motion.h2
-                        initial={{ opacity: 0, y: 16 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        className="text-3xl sm:text-4xl font-bold text-white"
-                    >
-                        Four steps to a <span className="gradient-text">perfect auction</span>
-                    </motion.h2>
-                </div>
-
-                <div className="relative">
-                    {/* Vertical line connector */}
-                    <div className="absolute left-8 top-0 bottom-0 w-px bg-gradient-to-b from-cyan-500/0 via-cyan-500/30 to-cyan-500/0 hidden md:block" />
-
-                    <div className="space-y-8">
-                        {STEPS.map((step, i) => (
-                            <motion.div
-                                key={step.number}
-                                initial={{ opacity: 0, x: -20 }}
-                                whileInView={{ opacity: 1, x: 0 }}
-                                viewport={{ once: true }}
-                                transition={{ delay: i * 0.1 }}
-                                className="relative flex gap-6 md:gap-10 items-start"
-                            >
-                                {/* Step icon */}
-                                <div
-                                    className="relative z-10 flex-shrink-0 w-16 h-16 rounded-2xl border flex items-center justify-center"
-                                    style={{
-                                        background: `${step.color}10`,
-                                        borderColor: `${step.color}30`,
-                                    }}
-                                >
-                                    <step.icon className="w-7 h-7" style={{ color: step.color }} />
-                                    <span
-                                        className="absolute -top-2 -right-2 text-xs font-bold font-mono px-1.5 py-0.5 rounded-md"
-                                        style={{
-                                            background: step.color,
-                                            color: "#050505",
-                                        }}
-                                    >
-                                        {step.number}
-                                    </span>
-                                </div>
-
-                                {/* Content */}
-                                <div className="pt-2 pb-6 flex-1 border-b border-white/[0.04] last:border-0">
-                                    <h3 className="text-lg font-semibold text-white mb-2">{step.title}</h3>
-                                    <p className="text-sm text-zinc-400 leading-relaxed mb-3 max-w-xl">{step.description}</p>
-                                    <span
-                                        className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full"
-                                        style={{
-                                            background: `${step.color}12`,
-                                            color: step.color,
-                                            border: `1px solid ${step.color}25`,
-                                        }}
-                                    >
-                                        {step.detail}
-                                    </span>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        </section>
-    );
+        {/* Steps */}
+        <div className="border-t border-white">
+          {STEPS.map((step, i) => (
+            <motion.div
+              key={step.id}
+              initial={{ opacity: 0, x: -12 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+              className="border-b border-white py-8 flex items-start gap-8 group hover:opacity-60 hover:px-6 transition-all duration-100"
+            >
+              <span className="font-mono text-3xl sm:text-5xl font-bold tracking-[-0.04em] opacity-20 group-hover:opacity-40 min-w-[60px] sm:min-w-[80px]">
+                {step.id}
+              </span>
+              <div className="flex-1">
+                <h3 className="font-mono text-base sm:text-lg font-bold uppercase tracking-[0.05em] mb-2">
+                  <EncryptedText text={step.title} revealDelayMs={90} flipDelayMs={60} />
+                </h3>
+                <p className="font-mono text-xs sm:text-sm leading-relaxed opacity-60 group-hover:opacity-80">
+                  {step.description}
+                </p>
+              </div>
+              <span className="font-mono text-xs uppercase tracking-[0.15em] opacity-0 group-hover:opacity-60 transition-opacity hidden sm:block">
+                →
+              </span>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
 }

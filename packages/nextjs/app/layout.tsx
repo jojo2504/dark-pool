@@ -1,6 +1,6 @@
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "@rainbow-me/rainbowkit/styles.css";
 import "@scaffold-ui/components/styles.css";
-import { Inter, JetBrains_Mono } from "next/font/google";
 import { ScaffoldEthAppWithProviders } from "~~/components/ScaffoldEthAppWithProviders";
 import { ThemeProvider } from "~~/components/ThemeProvider";
 import "~~/styles/globals.css";
@@ -17,17 +17,14 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata = getMetadata({
-  title: "Dark Pool — Sealed-Bid Auctions on Canton",
-  description:
-    "Sealed-bid auctions with cryptographic fairness. Immutable rules, trustless settlement, powered by Canton Network.",
+  title: "Dark Pool — Sealed-Bid Auctions",
+  description: "Sealed-bid auctions with cryptographic fairness. Immutable rules, trustless on-chain settlement.",
 });
 
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
   return (
     <html suppressHydrationWarning className="dark">
-      <body
-        className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-[#050505] text-white`}
-      >
+      <body className={`${inter.variable} ${jetbrainsMono.variable} font-mono antialiased bg-black text-white`}>
         <ThemeProvider enableSystem>
           <ScaffoldEthAppWithProviders>{children}</ScaffoldEthAppWithProviders>
         </ThemeProvider>

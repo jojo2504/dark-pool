@@ -1,81 +1,192 @@
 "use client";
 
-import React, { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Lock, Menu, X } from "lucide-react";
+import { gsap } from "gsap";
+import { GoArrowUpRight } from "react-icons/go";
 import { RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
+import "~~/styles/CardNav.css";
 
-const NAV_LINKS = [
-  { label: "Home", href: "/" },
-  { label: "Auctions", href: "/auctions" },
-  { label: "Create", href: "/auctions/create" },
-  { label: "Debug Contracts", href: "/debug" },
+const NAV_ITEMS = [
+  {
+    label: "Auctions",
+    links: [
+      { label: "Browse All", href: "/auctions", ariaLabel: "Browse all auctions" },
+      { label: "Create New", href: "/auctions/create", ariaLabel: "Create a new auction" },
+    ],
+  },
+  {
+    label: "Developer",
+    links: [
+      { label: "Debug Contracts", href: "/debug", ariaLabel: "Debug contracts" },
+      { label: "Block Explorer", href: "/blockexplorer", ariaLabel: "Block explorer" },
+    ],
+  },
+  {
+    label: "Protocol",
+    links: [
+      { label: "How It Works", href: "/#how-it-works", ariaLabel: "How it works" },
+      { label: "Documentation", href: "/debug", ariaLabel: "Documentation" },
+    ],
+  },
 ];
 
 export function Header() {
-  const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isHamburgerOpen, setIsHamburgerOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+  const cardsRef = useRef<HTMLDivElement[]>([]);
+  const tlRef = useRef<gsap.core.Timeline | null>(null);
+
+  const calculateHeight = () => {
+    const navEl = navRef.current;
+    if (!navEl) return 220;
+
+    const isMobile = window.matchMedia("(max-width: 768px)").matches;
+    if (isMobile) {
+      const contentEl = navEl.querySelector(".card-nav-content") as HTMLElement;
+      if (contentEl) {
+        const wasVisibility = contentEl.style.visibility;
+        const wasPointerEvents = contentEl.style.pointerEvents;
+        const wasPosition = contentEl.style.position;
+        const wasHeight = contentEl.style.height;
+
+        contentEl.style.visibility = "visible";
+        contentEl.style.pointerEvents = "auto";
+        contentEl.style.position = "static";
+        contentEl.style.height = "auto";
+        void contentEl.offsetHeight;
+
+        const contentHeight = contentEl.scrollHeight;
+
+        contentEl.style.visibility = wasVisibility;
+        contentEl.style.pointerEvents = wasPointerEvents;
+        contentEl.style.position = wasPosition;
+        contentEl.style.height = wasHeight;
+
+        return 56 + contentHeight + 8;
+      }
+    }
+    return 220;
+  };
+
+  const createTimeline = () => {
+    const navEl = navRef.current;
+    if (!navEl) return null;
+
+    gsap.set(navEl, { height: 56, overflow: "hidden" });
+    gsap.set(cardsRef.current, { y: 30, opacity: 0 });
+
+    const tl = gsap.timeline({ paused: true });
+    tl.to(navEl, { height: calculateHeight, duration: 0.3, ease: "power2.out" });
+    tl.to(cardsRef.current, { y: 0, opacity: 1, duration: 0.3, ease: "power2.out", stagger: 0.05 }, "-=0.1");
+    return tl;
+  };
+
+  useLayoutEffect(() => {
+    const tl = createTimeline();
+    tlRef.current = tl;
+    return () => {
+      tl?.kill();
+      tlRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useLayoutEffect(() => {
+    const handleResize = () => {
+      if (!tlRef.current) return;
+      if (isExpanded) {
+        gsap.set(navRef.current, { height: calculateHeight() });
+        tlRef.current.kill();
+        const newTl = createTimeline();
+        if (newTl) {
+          newTl.progress(1);
+          tlRef.current = newTl;
+        }
+      } else {
+        tlRef.current.kill();
+        const newTl = createTimeline();
+        if (newTl) tlRef.current = newTl;
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isExpanded]);
+
+  const toggleMenu = () => {
+    const tl = tlRef.current;
+    if (!tl) return;
+    if (!isExpanded) {
+      setIsHamburgerOpen(true);
+      setIsExpanded(true);
+      tl.play(0);
+    } else {
+      setIsHamburgerOpen(false);
+      tl.eventCallback("onReverseComplete", () => setIsExpanded(false));
+      tl.reverse();
+    }
+  };
+
+  const closeMenu = () => {
+    setIsHamburgerOpen(false);
+    tlRef.current?.eventCallback("onReverseComplete", () => setIsExpanded(false));
+    tlRef.current?.reverse();
+  };
+
+  const setCardRef = (i: number) => (el: HTMLDivElement | null) => {
+    if (el) cardsRef.current[i] = el;
+  };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 glass">
-      <div className="max-w-6xl mx-auto flex items-center justify-between px-4 py-3">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center group-hover:bg-cyan-500/30 transition-all">
-            <Lock className="w-4 h-4 text-cyan-400" />
-          </div>
-          <span className="text-white font-semibold text-sm tracking-wide hidden sm:inline">Dark Pool</span>
-        </Link>
-
-        {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-6">
-          {NAV_LINKS.map(link => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`text-sm transition-colors ${pathname === link.href ? "text-cyan-400 font-medium" : "text-zinc-400 hover:text-zinc-200"
-                }`}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-
-        {/* Right side */}
-        <div className="flex items-center gap-3">
-          <RainbowKitCustomConnectButton />
-
-          {/* Mobile menu button */}
-          <button
-            onClick={() => setMobileOpen(p => !p)}
-            className="md:hidden p-2 text-zinc-400 hover:text-zinc-200 transition-colors"
+    <div className="card-nav-container">
+      <nav ref={navRef} className={`card-nav ${isExpanded ? "open" : ""}`}>
+        <div className="card-nav-top">
+          <div
+            className={`hamburger-menu ${isHamburgerOpen ? "open" : ""}`}
+            onClick={toggleMenu}
+            role="button"
+            aria-label={isExpanded ? "Close menu" : "Open menu"}
+            tabIndex={0}
           >
-            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-        </div>
-      </div>
+            <div className="hamburger-line" />
+            <div className="hamburger-line" />
+          </div>
 
-      {/* Mobile nav dropdown */}
-      {mobileOpen && (
-        <div className="md:hidden glass border-t border-white/[0.06]">
-          <div className="px-4 py-3 space-y-1">
-            {NAV_LINKS.map(link => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setMobileOpen(false)}
-                className={`block py-2.5 text-sm rounded-lg px-3 transition-colors ${pathname === link.href
-                    ? "text-cyan-400 bg-cyan-500/10"
-                    : "text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04]"
-                  }`}
-              >
-                {link.label}
-              </Link>
-            ))}
+          <div className="logo-container">
+            <Link href="/" className="logo-text" style={{ textDecoration: "none" }}>
+              DARK POOL
+            </Link>
+          </div>
+
+          <div className="card-nav-cta-button">
+            <RainbowKitCustomConnectButton />
           </div>
         </div>
-      )}
-    </header>
+
+        <div className="card-nav-content" aria-hidden={!isExpanded}>
+          {NAV_ITEMS.map((item, idx) => (
+            <div key={item.label} className="nav-card" ref={setCardRef(idx)}>
+              <div className="nav-card-label">{item.label}</div>
+              <div className="nav-card-links">
+                {item.links.map((lnk, i) => (
+                  <Link
+                    key={`${lnk.label}-${i}`}
+                    className="nav-card-link"
+                    href={lnk.href}
+                    aria-label={lnk.ariaLabel}
+                    onClick={closeMenu}
+                  >
+                    <GoArrowUpRight className="nav-card-link-icon" aria-hidden="true" />
+                    {lnk.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </nav>
+    </div>
   );
 }
