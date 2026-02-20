@@ -21,9 +21,21 @@ const deployShadowBidFactory: DeployFunction = async function (hre: HardhatRunti
   const { deployer } = await hre.getNamedAccounts();
   const { deploy } = hre.deployments;
 
-  const result = await deploy("ShadowBidFactory", {
+  // ── Step 1: Deploy vault implementation (deployed once; cloned per auction) ──
+  // ShadowBidFactory uses EIP-1167 minimal proxies so vault bytecode is NOT
+  // embedded in the factory — keeps factory well under the 24 KB EVM limit.
+  const vaultImpl = await deploy("ShadowBidVault", {
     from: deployer,
     args: [],
+    log: true,
+    autoMine: true,
+  });
+  console.log(`\n✅ ShadowBidVault implementation deployed to: ${vaultImpl.address}`);
+
+  // ── Step 2: Deploy factory with vault impl address ─────────────────────────
+  const result = await deploy("ShadowBidFactory", {
+    from: deployer,
+    args: [vaultImpl.address],
     log: true,
     autoMine: true,
   });
@@ -34,8 +46,8 @@ const deployShadowBidFactory: DeployFunction = async function (hre: HardhatRunti
   if (result.newlyDeployed) {
     const factory = await hre.ethers.getContractAt("ShadowBidFactory", result.address);
 
-    // Self-verify the deployer as KYB'd for testing
-    const verifyTx = await factory.verifyInstitution(deployer, true, "0x");
+    // Self-verify the deployer as KYB'd for testing (jurisdiction="UAE", sig=0x for on-chain-only auth)
+    const verifyTx = await factory.verifyInstitution(deployer, true, "UAE", "0x");
     await verifyTx.wait();
     console.log(`✅ Deployer auto-verified for KYB testing: ${deployer}`);
 

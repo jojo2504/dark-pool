@@ -53,6 +53,8 @@ const config: HardhatUserConfig = {
         url: `https://eth-mainnet.alchemyapi.io/v2/${providerApiKey}`,
         enabled: process.env.MAINNET_FORKING_ENABLED === "true",
       },
+      // ShadowBidFactory exceeds EIP-170 24 KB limit; allow it in local tests
+      allowUnlimitedContractSize: true,
     },
     mainnet: {
       url: "https://mainnet.rpc.buidlguidl.com",

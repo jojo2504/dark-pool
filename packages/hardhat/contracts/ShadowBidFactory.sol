@@ -2,7 +2,36 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "./ShadowBidVault.sol";
+import "@openzeppelin/contracts/proxy/Clones.sol";
+
+// ─── Vault Initializer Interface ──────────────────────────────────────────────
+// Matches ShadowBidVault.initialize() — allows factory to call it after cloning
+// without embedding the full vault bytecode in the factory's runtime code.
+interface IShadowBidVaultInit {
+    function initialize(
+        address _factory,
+        address _platformAdmin,
+        address _oracle,
+        bytes32 _assetProofHash,
+        uint256 _declaredAssetValue,
+        address _assetTokenContract,
+        uint256 _assetTokenId,
+        bool _requiresAccreditation,
+        string[] calldata _allowedJurisdictions,
+        address _settlementToken,
+        uint256 _settlementWindow,
+        uint256 _oracleTimeout,
+        address _buyer,
+        string calldata _title,
+        string calldata _description,
+        uint256 _closeTime,
+        uint256 _revealWindow,
+        uint256 _depositRequired,
+        address[] calldata _allowedSuppliers,
+        string calldata _buyerECIESPubKey,
+        uint256 _reviewWindowSeconds
+    ) external payable;
+}
 
 /**
  * @title ShadowBidFactory
@@ -20,6 +49,9 @@ import "./ShadowBidVault.sol";
 contract ShadowBidFactory is AccessControl {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant BUYER_ROLE = keccak256("BUYER_ROLE");
+
+    /// @dev Vault implementation deployed once; factory clones it (EIP-1167) per auction.
+    address public immutable vaultImpl;
 
     // ─── Global KYB State ─────────────────────────────────────────────────────
     mapping(address => bool) public verified;
@@ -43,7 +75,8 @@ contract ShadowBidFactory is AccessControl {
     event InstitutionVerified(address indexed inst, bool accredited);
     event InstitutionRevoked(address indexed inst);
 
-    constructor() {
+    constructor(address _vaultImpl) {
+        vaultImpl = _vaultImpl;
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ADMIN_ROLE, msg.sender);
         _grantRole(BUYER_ROLE, msg.sender);
@@ -131,20 +164,22 @@ contract ShadowBidFactory is AccessControl {
         require(_revealWindow >= 3600, "revealWindow must be >= 1h");
         require(_allowedSuppliers.length >= 1, "At least 1 supplier required");
 
-        ShadowBidVault vault = new ShadowBidVault{ value: msg.value }(
+        // Clone the implementation (EIP-1167 minimal proxy, ~55 bytes, ~500 gas)
+        address clone = Clones.clone(vaultImpl);
+        IShadowBidVaultInit(clone).initialize{ value: msg.value }(
             address(this), // factory (KYB oracle)
-            msg.sender, // platformAdmin = deployer EOA who created this vault
+            msg.sender,    // platformAdmin
             _oracle,
             _assetProofHash,
             _declaredAssetValue,
-            address(0), // no tokenized asset (can add later)
+            address(0),    // no tokenized asset (can add later)
             0,
             _requiresAccreditation,
             _allowedJurisdictions,
             _settlementToken,
             _settlementWindow,
             _oracleTimeout,
-            msg.sender, // buyer = vault creator
+            msg.sender,    // buyer = vault creator
             _title,
             _description,
             _closeTime,
@@ -155,7 +190,7 @@ contract ShadowBidFactory is AccessControl {
             _reviewWindowSeconds
         );
 
-        vaultAddr = address(vault);
+        vaultAddr = clone;
         allVaults.push(vaultAddr);
         isVault[vaultAddr] = true;
         vaultsByBuyer[msg.sender].push(vaultAddr);

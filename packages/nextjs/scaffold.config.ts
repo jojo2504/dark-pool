@@ -44,9 +44,10 @@ export const DEFAULT_ALCHEMY_API_KEY = "cR4WnXePioePZ5fFrnSiR";
 
 const scaffoldConfig = {
   // The networks on which your DApp is live
-  //targetNetworks: [adiTestnet, chains.hardhat],
+  // Contracts are deployed on ADI Chain — gas fees paid in ADI
   //targetNetworks: [chains.sepolia, chains.hardhat],
-  targetNetworks: [ogGalileo],
+  //targetNetworks: [ogGalileo],
+  targetNetworks: [adiTestnet],
   // The interval at which your front-end polls the RPC servers for new data
   pollingInterval: 4000,
   // This is ours Alchemy's default API key.
@@ -64,10 +65,12 @@ const scaffoldConfig = {
   rpcOverrides: {
     // Flashbots Protect — hides pending txs from searchers on Ethereum mainnet
     // [chains.mainnet.id]: "https://rpc.flashbots.net",
-    // ADI Chain Testnet (chain ID 99999) — use ADI Foundation compliant RPC
-    // [adiTestnet.id]: process.env.NEXT_PUBLIC_ADI_TESTNET_RPC ?? "https://rpc.ab.testnet.adifoundation.ai/",
+    // ADI Chain Testnet (chain ID 99999) — explicit override so wagmi doesn't fall back to a blank http() transport
+    [adiTestnet.id]: process.env.NEXT_PUBLIC_ADI_TESTNET_RPC ?? "https://rpc.ab.testnet.adifoundation.ai/",
     // ADI Chain Mainnet (chain ID 36900)
     // [36900]: process.env.NEXT_PUBLIC_ADI_MAINNET_RPC ?? "https://rpc.adifoundation.ai/",
+    // 0G Galileo Testnet (data availability layer only — not for gas)
+    // [ogGalileo.id]: process.env.NEXT_PUBLIC_OG_GALILEO_RPC ?? "https://evmrpc-testnet.0g.ai",
   },
   // This is ours WalletConnect's default project ID.
   // You can get your own at https://cloud.walletconnect.com

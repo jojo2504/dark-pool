@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
 import { keccak256, parseEther, toBytes, zeroAddress } from "viem";
-import { useAccount, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { z } from "zod";
 import { FACTORY_ABI } from "~~/lib/contracts";
 import { DDSC_ADDRESS, FACTORY_ADDRESS, SETTLEMENT_TOKENS } from "~~/lib/darkpool-config";
@@ -18,7 +18,17 @@ const schema = z.object({
   durationHours: z.coerce.number().min(1).max(8760),
   revealWindowHours: z.coerce.number().min(1).max(720),
   depositEth: z.string().min(1),
-  allowedSuppliersRaw: z.string().min(1),
+  allowedSuppliersRaw: z
+    .string()
+    .min(1)
+    .refine(
+      val =>
+        val
+          .split(",")
+          .map(s => s.trim())
+          .some(s => /^0x[0-9a-fA-F]{40}$/.test(s)),
+      { message: "Enter at least one valid Ethereum address (0x followed by 40 hex chars)" },
+    ),
   buyerECIESPubKey: z.string().min(1),
   // Compliance
   oracleAddress: z.string().optional(),
@@ -37,6 +47,10 @@ type FormData = z.infer<typeof schema>;
 const inputClass =
   "w-full px-4 py-3 bg-black/80 border border-white/30 font-mono text-xs text-white placeholder:text-white/60 focus:outline-none focus:border-white focus:bg-black transition-all duration-100";
 const labelClass = "font-mono text-[10px] tracking-[0.15em] uppercase text-white/80 block mb-2";
+const req = <span className="text-red-500 ml-0.5">*</span>;
+
+// keccak256("BUYER_ROLE") — must match ShadowBidFactory's BUYER_ROLE constant
+const BUYER_ROLE_HASH = "0xf8cd32ed93fc2f9fc78152a14807c9609af3d99c5fe4dc6b106a801aaddfe90e" as `0x${string}`;
 
 function computeBond(declaredEth: string): bigint {
   try {
@@ -52,7 +66,7 @@ function computeBond(declaredEth: string): bigint {
 
 export default function CreateAuctionPage() {
   const router = useRouter();
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const [showModal, setShowModal] = useState(false);
   const [pendingData, setPendingData] = useState<FormData | null>(null);
   const [section, setSection] = useState<"basic" | "compliance" | "settlement">("basic");
@@ -60,6 +74,17 @@ export default function CreateAuctionPage() {
   const { writeContractAsync, isPending: isTxPending } = useWriteContract();
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
   const { isSuccess: isTxSuccess } = useWaitForTransactionReceipt({ hash: txHash });
+
+  // Gate: createVault requires BUYER_ROLE — granted automatically on KYB approval.
+  // Without it, the tx reverts with "AccessControl: missing role" which ZKSync surfaces
+  // to MetaMask as a misleading "insufficient funds" error.
+  const { data: hasBuyerRole } = useReadContract({
+    address: FACTORY_ADDRESS,
+    abi: FACTORY_ABI,
+    functionName: "hasRole",
+    args: [BUYER_ROLE_HASH, address ?? zeroAddress],
+    query: { enabled: !!address },
+  });
 
   const {
     register,
@@ -87,6 +112,10 @@ export default function CreateAuctionPage() {
   const onSubmit = (data: FormData) => {
     if (!isConnected) {
       toast.error("Connect wallet");
+      return;
+    }
+    if (hasBuyerRole === false) {
+      toast.error("KYB verification required — complete KYB at /kyb to unlock vault creation");
       return;
     }
     setPendingData(data);
@@ -213,7 +242,7 @@ export default function CreateAuctionPage() {
                 </div>
                 <div className="flex justify-between p-3">
                   <span className="opacity-40">DEPOSIT</span>
-                  <span>{pendingData.depositEth} ETH</span>
+                  <span>{pendingData.depositEth} ADI</span>
                 </div>
                 <div className="flex justify-between p-3">
                   <span className="opacity-40">SUPPLIERS</span>
@@ -223,12 +252,12 @@ export default function CreateAuctionPage() {
                 </div>
                 <div className="flex justify-between p-3">
                   <span className="opacity-40">ASSET VALUE</span>
-                  <span>{pendingData.declaredAssetValueEth || "0"} ETH</span>
+                  <span>{pendingData.declaredAssetValueEth || "0"} ADI</span>
                 </div>
                 <div className="flex justify-between p-3">
                   <span className="opacity-40">CREATOR BOND</span>
                   <span className="text-yellow-400">
-                    {bondAmount === 0n ? "0 ETH (no bond)" : `${Number(bondAmount) / 1e18} ETH`}
+                    {bondAmount === 0n ? "0 ADI (no bond)" : `${Number(bondAmount) / 1e18} ADI`}
                   </span>
                 </div>
                 <div className="flex justify-between p-3">
@@ -244,7 +273,7 @@ export default function CreateAuctionPage() {
               {bondAmount > 0n && (
                 <div className="border border-yellow-400/30 bg-yellow-400/5 p-3 mb-4">
                   <p className="font-mono text-[10px] uppercase text-yellow-400 opacity-80">
-                    ⚡ {Number(bondAmount) / 1e18} ETH CREATOR BOND WILL BE LOCKED IN ESCROW
+                    ⚡ {Number(bondAmount) / 1e18} ADI CREATOR BOND WILL BE LOCKED IN ESCROW
                   </p>
                   <p className="font-mono text-[10px] uppercase text-white/30 mt-1">
                     RELEASED 72H AFTER ORACLE CONFIRMS DELIVERY
@@ -287,6 +316,16 @@ export default function CreateAuctionPage() {
                 ⚠ CONNECT WALLET TO DEPLOY
               </p>
             )}
+            {isConnected && hasBuyerRole === false && (
+              <div className="border border-red-500/40 bg-red-900/10 p-3 mt-3 max-w-lg">
+                <p className="font-mono text-[10px] uppercase text-red-400">
+                  ⚠ YOUR WALLET IS NOT AUTHORIZED TO CREATE AUCTIONS.{" "}
+                  <a href="/kyb" className="underline hover:opacity-80">
+                    COMPLETE KYB VERIFICATION TO UNLOCK →
+                  </a>
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -315,14 +354,14 @@ export default function CreateAuctionPage() {
                 <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/60 mb-6">AUCTION INFO</p>
                 <div className="space-y-4">
                   <div>
-                    <label className={labelClass}>TITLE</label>
+                    <label className={labelClass}>TITLE {req}</label>
                     <input {...register("title")} placeholder="DUBAI REAL ESTATE Q3 TENDER" className={inputClass} />
                     {errors.title && (
                       <p className="font-mono text-[10px] uppercase text-red-400 mt-1">{errors.title.message}</p>
                     )}
                   </div>
                   <div>
-                    <label className={labelClass}>DESCRIPTION</label>
+                    <label className={labelClass}>DESCRIPTION {req}</label>
                     <textarea
                       {...register("description")}
                       rows={3}
@@ -341,7 +380,7 @@ export default function CreateAuctionPage() {
                 <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/60 mb-6">TIMING</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className={labelClass}>COMMIT DURATION (H)</label>
+                    <label className={labelClass}>COMMIT DURATION (H) {req}</label>
                     <input
                       {...register("durationHours")}
                       type="number"
@@ -351,7 +390,7 @@ export default function CreateAuctionPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>REVEAL WINDOW (H)</label>
+                    <label className={labelClass}>REVEAL WINDOW (H) {req}</label>
                     <input
                       {...register("revealWindowHours")}
                       type="number"
@@ -372,7 +411,7 @@ export default function CreateAuctionPage() {
                     <p className="font-mono text-[9px] text-white/50 mt-1">BIDDING STARTS AFTER THIS WINDOW</p>
                   </div>
                   <div>
-                    <label className={labelClass}>REQUIRED DEPOSIT (ETH)</label>
+                    <label className={labelClass}>REQUIRED DEPOSIT (ADI) {req}</label>
                     <input
                       {...register("depositEth")}
                       type="number"
@@ -390,18 +429,28 @@ export default function CreateAuctionPage() {
                 <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/60 mb-6">ACCESS CONTROL</p>
                 <div className="space-y-4">
                   <div>
-                    <label className={labelClass}>WHITELISTED BIDDERS (COMMA-SEPARATED)</label>
+                    <label className={labelClass}>WHITELISTED BIDDERS (COMMA-SEPARATED) {req}</label>
                     <textarea
                       {...register("allowedSuppliersRaw")}
                       rows={2}
                       placeholder="0xABC..., 0xDEF..."
                       className={inputClass + " resize-none"}
                     />
+                    {errors.allowedSuppliersRaw && (
+                      <p className="font-mono text-[10px] uppercase text-red-400 mt-1">
+                        {errors.allowedSuppliersRaw.message}
+                      </p>
+                    )}
                     <p className="font-mono text-[9px] text-white/50 mt-1">MUST ALSO PASS KYB VERIFICATION</p>
                   </div>
                   <div>
-                    <label className={labelClass}>BUYER ECIES PUBLIC KEY</label>
+                    <label className={labelClass}>BUYER ECIES PUBLIC KEY {req}</label>
                     <input {...register("buyerECIESPubKey")} placeholder="04A1B2C3..." className={inputClass} />
+                    {errors.buyerECIESPubKey && (
+                      <p className="font-mono text-[10px] uppercase text-red-400 mt-1">
+                        {errors.buyerECIESPubKey.message}
+                      </p>
+                    )}
                     <p className="font-mono text-[9px] text-white/50 mt-1">FOR OFF-CHAIN ENCRYPTED BID STORAGE</p>
                   </div>
                 </div>
@@ -424,7 +473,7 @@ export default function CreateAuctionPage() {
                     <p className="font-mono text-[9px] text-white/50 mt-1">HASHED ON-CHAIN AS IMMUTABLE ASSET PROOF</p>
                   </div>
                   <div>
-                    <label className={labelClass}>DECLARED ASSET VALUE (ETH)</label>
+                    <label className={labelClass}>DECLARED ASSET VALUE (ADI)</label>
                     <input
                       {...register("declaredAssetValueEth")}
                       type="number"
@@ -437,7 +486,7 @@ export default function CreateAuctionPage() {
                       CREATOR BOND:{" "}
                       {bondAmount === 0n
                         ? "NONE (no value declared)"
-                        : `${Number(bondAmount) / 1e18} ETH (0.5% min 0.01 ETH)`}
+                        : `${Number(bondAmount) / 1e18} ADI (0.5% min 0.01 ADI)`}
                     </p>
                   </div>
                   <div>
@@ -554,7 +603,7 @@ export default function CreateAuctionPage() {
               disabled={!isConnected}
               className="w-full py-5 border border-white border-t-0 bg-white text-black font-mono text-xs tracking-[0.15em] uppercase font-bold hover:opacity-80 disabled:opacity-20 transition-all duration-100"
             >
-              REVIEW & DEPLOY VAULT →
+              REVIEW &amp; DEPLOY VAULT →
             </button>
           </form>
         </div>

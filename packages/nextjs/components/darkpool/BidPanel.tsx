@@ -29,8 +29,12 @@ interface BidPanelProps {
   requiresAccreditation: boolean;
 }
 
-const CONFLICT_STATEMENT =
-  "I hereby attest that I have no undisclosed conflict of interest with the seller, asset issuer, or any counterparty to this auction, and that I am submitting a bona fide arm's-length bid.";
+// MUST match the EIP-712 domain name in ShadowBidVault constructor: EIP712("DarkPool", "1")
+const EIP712_DOMAIN_NAME = "DarkPool";
+
+// MUST match the exact bytes hashed inside ShadowBidVault.submitConflictAttestation()
+// keccak256(bytes("I confirm I am not affiliated with the auction creator and have no conflict of interest."))
+const CONFLICT_STATEMENT = "I confirm I am not affiliated with the auction creator and have no conflict of interest.";
 
 function randomBytes32(): `0x${string}` {
   const arr = new Uint8Array(32);
@@ -133,7 +137,7 @@ export function BidPanel({
     try {
       const sig = await signTypedDataAsync({
         domain: {
-          name: "ShadowBidVault",
+          name: EIP712_DOMAIN_NAME,
           version: "1",
           chainId,
           verifyingContract: vaultAddress,
@@ -185,7 +189,7 @@ export function BidPanel({
         address: vaultAddress,
         abi: VAULT_ABI,
         functionName: "commitBid",
-        args: [hash, storageRoot as `0x${string}`],
+        args: [hash, storageRoot], // storageRoot is string calldata in the contract
         value: depositRequired,
       });
       setCommitTxHash(txHash);

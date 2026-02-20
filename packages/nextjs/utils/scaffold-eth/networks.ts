@@ -1,5 +1,5 @@
 import * as chains from "viem/chains";
-import scaffoldConfig from "~~/scaffold.config";
+import scaffoldConfig, { adiTestnet, ogGalileo } from "~~/scaffold.config";
 
 type ChainAttributes = {
   // color | [lightThemeColor, darkThemeColor]
@@ -45,6 +45,15 @@ export const getAlchemyHttpUrl = (chainId: number) => {
 export const NETWORKS_EXTRA_DATA: Record<string, ChainAttributes> = {
   [chains.hardhat.id]: {
     color: "#b8af0c",
+  },
+  // ── ADI Chain ─────────────────────────────────────────────────────────────
+  // Contracts are deployed here; gas fees are paid in ADI.
+  [adiTestnet.id]: {
+    color: "#7c3aed",
+  },
+  // ── 0G Galileo (data availability layer — not the gas chain) ─────────────
+  [ogGalileo.id]: {
+    color: "#00d4ff",
   },
   [chains.mainnet.id]: {
     color: "#ff8b9e",

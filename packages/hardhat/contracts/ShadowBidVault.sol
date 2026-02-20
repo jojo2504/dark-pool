@@ -31,12 +31,12 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
     using ECDSA for bytes32;
 
     // ─── Platform ─────────────────────────────────────────────────────────────
-    IShadowBidFactory public immutable factory;
+    IShadowBidFactory public factory;
     address public platformAdmin;
     bool public paused;
 
     // ─── Auction Creator ──────────────────────────────────────────────────────
-    address public immutable buyer;
+    address public buyer;
 
     // ─── Metadata ─────────────────────────────────────────────────────────────
     string public title;
@@ -46,9 +46,9 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
     uint256 public declaredAssetValue;
 
     // ─── Timing ───────────────────────────────────────────────────────────────
-    uint256 public immutable closeTime;
-    uint256 public immutable revealDeadline;
-    uint256 public immutable depositRequired;
+    uint256 public closeTime;
+    uint256 public revealDeadline;
+    uint256 public depositRequired;
     uint256 public biddingStartTime;
 
     // ─── Jurisdiction & Accreditation ─────────────────────────────────────────
@@ -170,9 +170,24 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
         _;
     }
 
-    // ─── Constructor ──────────────────────────────────────────────────────────
+    // ─── Clone Initialization ──────────────────────────────────────────────────
 
-    constructor(
+    bool private _initialized;
+
+    /**
+     * @dev Implementation constructor: bakes EIP-712 name/version into bytecode
+     *      and locks the implementation so it cannot itself be used as a vault.
+     *      All real vault state is set via initialize() after factory clones this.
+     */
+    constructor() EIP712("DarkPool", "1") {
+        _initialized = true; // lock impl; only clones should call initialize()
+    }
+
+    /**
+     * @dev Called by ShadowBidFactory immediately after EIP-1167 cloning.
+     *      Replaces the old constructor — calldata params save gas vs memory.
+     */
+    function initialize(
         address _factory,
         address _platformAdmin,
         address _oracle,
@@ -181,20 +196,23 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
         address _assetTokenContract,
         uint256 _assetTokenId,
         bool _requiresAccreditation,
-        string[] memory _allowedJurisdictions,
+        string[] calldata _allowedJurisdictions,
         address _settlementToken,
         uint256 _settlementWindow,
         uint256 _oracleTimeout,
         address _buyer,
-        string memory _title,
-        string memory _description,
+        string calldata _title,
+        string calldata _description,
         uint256 _closeTime,
         uint256 _revealWindow,
         uint256 _depositRequired,
-        address[] memory _allowedSuppliers,
-        string memory _buyerECIESPubKey,
+        address[] calldata _allowedSuppliers,
+        string calldata _buyerECIESPubKey,
         uint256 _reviewWindowSeconds
-    ) payable EIP712("DarkPool", "1") {
+    ) external payable {
+        require(!_initialized, "Already initialized");
+        _initialized = true;
+
         if (_declaredAssetValue > 0) {
             uint256 requiredBond = (_declaredAssetValue * 5) / 1000;
             if (requiredBond < 0.01 ether) requiredBond = 0.01 ether;
@@ -520,8 +538,11 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
         uint256 burnShare = bond - victimShare;
         (bool ok1, ) = payable(victim).call{ value: victimShare }("");
         require(ok1, "Victim transfer failed");
-        (bool ok2, ) = payable(address(0xdead)).call{ value: burnShare }("");
-        require(ok2, "Burn transfer failed");
+        // Burn remaining 20% — skip call if zero to avoid call{value:0} reverts on some chains
+        if (burnShare > 0) {
+            (bool ok2, ) = payable(address(0xdead)).call{ value: burnShare }("");
+            require(ok2, "Burn transfer failed");
+        }
         emit CreatorBondSlashed(victim, victimShare, burnShare);
     }
 
