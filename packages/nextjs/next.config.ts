@@ -3,6 +3,10 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   devIndicators: false,
+  experimental: {
+    // Pre-compile all routes at startup instead of lazily on first visit
+    preloadEntriesOnStart: true,
+  },
   typescript: {
     ignoreBuildErrors: process.env.NEXT_PUBLIC_IGNORE_BUILD_ERROR === "true",
   },
@@ -14,6 +18,9 @@ const nextConfig: NextConfig = {
     config.externals.push("pino-pretty", "lokijs", "encoding");
     return config;
   },
+  // Turbopack resolver aliases (used by `next dev --turbopack`)
+  // mirrors the webpack externals above so SSR modules stay excluded
+  serverExternalPackages: ["pino-pretty", "lokijs", "encoding"],
 };
 
 const isIpfs = process.env.NEXT_PUBLIC_IPFS_BUILD === "true";

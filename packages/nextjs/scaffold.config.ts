@@ -1,4 +1,19 @@
+import { defineChain } from "viem";
 import * as chains from "viem/chains";
+
+// ── ADI Chain (not yet in viem/chains) ────────────────────────────────────────
+export const adiTestnet = defineChain({
+  id: 99999,
+  name: "ADI Testnet",
+  nativeCurrency: { name: "ADI", symbol: "ADI", decimals: 18 },
+  rpcUrls: {
+    default: { http: [process.env.NEXT_PUBLIC_ADI_TESTNET_RPC ?? "https://rpc.ab.testnet.adifoundation.ai/"] },
+  },
+  blockExplorers: {
+    default: { name: "ADI Explorer", url: "https://explorer.ab.testnet.adifoundation.ai" },
+  },
+  testnet: true,
+});
 
 export type BaseConfig = {
   targetNetworks: readonly chains.Chain[];
@@ -15,9 +30,10 @@ export const DEFAULT_ALCHEMY_API_KEY = "cR4WnXePioePZ5fFrnSiR";
 
 const scaffoldConfig = {
   // The networks on which your DApp is live
-  targetNetworks: [chains.hardhat],
-  // The interval at which your front-end polls the RPC servers for new data (it has no effect if you only target the local network (default is 4000))
-  pollingInterval: 3000,
+  //targetNetworks: [adiTestnet, chains.hardhat],
+  targetNetworks: [chains.sepolia, chains.hardhat],
+  // The interval at which your front-end polls the RPC servers for new data
+  pollingInterval: 4000,
   // This is ours Alchemy's default API key.
   // You can get your own at https://dashboard.alchemyapi.io
   // It's recommended to store it in an env variable:

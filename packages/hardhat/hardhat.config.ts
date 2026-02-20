@@ -33,6 +33,7 @@ const config: HardhatUserConfig = {
             // https://docs.soliditylang.org/en/latest/using-the-compiler.html#optimizer-options
             runs: 200,
           },
+          viaIR: true,
         },
       },
     ],
@@ -123,6 +124,17 @@ const config: HardhatUserConfig = {
     },
     celoSepolia: {
       url: "https://forno.celo-sepolia.celo-testnet.org/",
+      accounts: [deployerPrivateKey],
+    },
+    // ── ADI Chain ─────────────────────────────────────────────────────────────
+    adiTestnet: {
+      url: process.env.ADI_TESTNET_RPC || "https://rpc.ab.testnet.adifoundation.ai/",
+      chainId: 99999,
+      accounts: [deployerPrivateKey],
+    },
+    adiMainnet: {
+      url: process.env.ADI_MAINNET_RPC || "https://rpc.adifoundation.ai",
+      chainId: 36900,
       accounts: [deployerPrivateKey],
     },
   },
