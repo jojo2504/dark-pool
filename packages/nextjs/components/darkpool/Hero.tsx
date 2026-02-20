@@ -72,7 +72,7 @@ export function Hero() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
-          className="flex flex-wrap gap-0"
+          className="flex flex-wrap gap-0 mb-20"
         >
           <Link
             href="/auctions"
@@ -93,7 +93,7 @@ export function Hero() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1 }}
-          className="absolute bottom-8 left-6 right-6 flex justify-between font-mono text-[10px] tracking-[0.15em] uppercase"
+          className="absolute bottom-8 left-6 right-6 flex flex-wrap justify-between gap-4 font-mono text-[10px] tracking-[0.15em] uppercase"
           style={{ color: "#ffffff", opacity: 0.25 }}
         >
           <span>
