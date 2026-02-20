@@ -2472,15 +2472,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@multiformats/multiaddr-to-uri@npm:^10.0.1":
-  version: 10.1.2
-  resolution: "@multiformats/multiaddr-to-uri@npm:10.1.2"
-  dependencies:
-    "@multiformats/multiaddr": ^12.3.0
-  checksum: 01510c7241de059bab0af1008f6e54a2d282b586ea06a06ac5ab27196533bbc5c3905e8874cc0e2950521f3abbc59e54e512b6cf2ad6350bf7f70596761d0fcc
-  languageName: node
-  linkType: hard
-
 "@multiformats/multiaddr-to-uri@npm:^11.0.0":
   version: 11.0.2
   resolution: "@multiformats/multiaddr-to-uri@npm:11.0.2"
@@ -4092,8 +4083,6 @@ __metadata:
     ethers: ^6.16.0
     framer-motion: ^12.34.2
     gsap: ^3.14.2
-    kubo-rpc-client: ~5.0.2
-    lucide-react: ^0.575.0
     next: ~15.2.8
     next-nprogress-bar: ~2.3.13
     next-themes: ~0.3.0
@@ -14312,47 +14301,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"kubo-rpc-client@npm:~5.0.2":
-  version: 5.0.2
-  resolution: "kubo-rpc-client@npm:5.0.2"
-  dependencies:
-    "@ipld/dag-cbor": ^9.0.0
-    "@ipld/dag-json": ^10.0.0
-    "@ipld/dag-pb": ^4.0.0
-    "@libp2p/crypto": ^5.0.0
-    "@libp2p/interface": ^2.0.0
-    "@libp2p/logger": ^5.0.0
-    "@libp2p/peer-id": ^5.0.0
-    "@multiformats/multiaddr": ^12.2.1
-    "@multiformats/multiaddr-to-uri": ^10.0.1
-    any-signal: ^4.1.1
-    blob-to-it: ^2.0.5
-    browser-readablestream-to-it: ^2.0.5
-    dag-jose: ^5.0.0
-    electron-fetch: ^1.9.1
-    err-code: ^3.0.1
-    ipfs-unixfs: ^11.1.4
-    iso-url: ^1.2.1
-    it-all: ^3.0.4
-    it-first: ^3.0.4
-    it-glob: ^3.0.1
-    it-last: ^3.0.4
-    it-map: ^3.0.5
-    it-peekable: ^3.0.3
-    it-to-stream: ^1.0.0
-    merge-options: ^3.0.4
-    multiformats: ^13.1.0
-    nanoid: ^5.0.7
-    native-fetch: ^4.0.2
-    parse-duration: ^1.0.2
-    react-native-fetch-api: ^3.0.0
-    stream-to-it: ^1.0.1
-    uint8arrays: ^5.0.3
-    wherearewe: ^2.0.1
-  checksum: 1e5528bebca8ab665c54d270204b90080f26d236fd056f059c21a964287e405851ac81249d125b315c998a533d8cbdd917df24c1a8cb9d8e5d76520e25eddf08
-  languageName: node
-  linkType: hard
-
 "ky@npm:^1.2.0":
   version: 1.14.3
   resolution: "ky@npm:1.14.3"
@@ -14901,15 +14849,6 @@ __metadata:
   version: 0.3.3
   resolution: "lru_map@npm:0.3.3"
   checksum: ca9dd43c65ed7a4f117c548028101c5b6855e10923ea9d1f635af53ad20c5868ff428c364d454a7b57fe391b89c704982275410c3c5099cca5aeee00d76e169a
-  languageName: node
-  linkType: hard
-
-"lucide-react@npm:^0.575.0":
-  version: 0.575.0
-  resolution: "lucide-react@npm:0.575.0"
-  peerDependencies:
-    react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-  checksum: fb9d082c90021e8e2a5f989e96620e39a3f90ffda4f39770e2546ebd5f13aa1e05c76c838b4bc0ca950519c1339f09b761e60763b17c848385c7f373070135c5
   languageName: node
   linkType: hard
 
@@ -16895,13 +16834,6 @@ __metadata:
     just-diff: ^6.0.0
     just-diff-apply: ^5.2.0
   checksum: ee4e1da52a54a127460713c82a12fffc1071dd2945350ebd9e203337b944901d086d515f7b15f42c6c5d9cf031de76eae0ebf5338fe8339d5695a7882d0aeba9
-  languageName: node
-  linkType: hard
-
-"parse-duration@npm:^1.0.2":
-  version: 1.1.2
-  resolution: "parse-duration@npm:1.1.2"
-  checksum: c31ebdee783935afe250fd79cdfab9d14e196ee2a810e6a7abbdef6d945a1b88797972437c9e5ed10e8e1cb5cd68b7cc13e9ac9721839f0cb1c2f5fe837d99d9
   languageName: node
   linkType: hard
 
