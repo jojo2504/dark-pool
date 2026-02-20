@@ -2,8 +2,9 @@
 // Run: npx prisma migrate dev --name init
 
 generator client {
-  provider = "prisma-client-js"
-  output   = "../lib/generated/prisma"
+  provider   = "prisma-client-js"
+  output     = "../lib/generated/prisma"
+  engineType = "binary"
 }
 
 datasource db {
