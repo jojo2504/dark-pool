@@ -29,22 +29,45 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
       { ...contract, functionName: "winner" },
       { ...contract, functionName: "winningPrice" },
       { ...contract, functionName: "buyerECIESPubKey" },
+      { ...contract, functionName: "oracle" },
+      { ...contract, functionName: "delivered" },
+      { ...contract, functionName: "paymentSubmitted" },
+      { ...contract, functionName: "settlementDeadline" },
+      { ...contract, functionName: "creatorBond" },
+      { ...contract, functionName: "secondBidder" },
+      { ...contract, functionName: "assetProofHash" },
+      { ...contract, functionName: "biddingStartTime" },
+      { ...contract, functionName: "paused" },
+      { ...contract, functionName: "winningBidAmount" },
+      { ...contract, functionName: "requiresAccreditation" },
     ],
   });
 
-  const { writeContractAsync: triggerReveal, isPending: isTriggerPending } = useWriteContract();
-  const [triggerHash, setTriggerHash] = useState<`0x${string}` | undefined>();
-  const { isSuccess: isTriggerSuccess } = useWaitForTransactionReceipt({ hash: triggerHash });
+  const { writeContractAsync, isPending: isTxPending } = useWriteContract();
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
+  const { isSuccess: isTxSuccess } = useWaitForTransactionReceipt({ hash: txHash });
+  if (isTxSuccess) refetch();
 
-  const { writeContractAsync: settle, isPending: isSettlePending } = useWriteContract();
-  const [settleHash, setSettleHash] = useState<`0x${string}` | undefined>();
-  const { isSuccess: isSettleSuccess } = useWaitForTransactionReceipt({ hash: settleHash });
-
-  const { writeContractAsync: cancel, isPending: isCancelPending } = useWriteContract();
-  const [cancelHash, setCancelHash] = useState<`0x${string}` | undefined>();
-  const { isSuccess: isCancelSuccess } = useWaitForTransactionReceipt({ hash: cancelHash });
-
-  if (isTriggerSuccess || isSettleSuccess || isCancelSuccess) refetch();
+  async function sendTx(
+    functionName: string,
+    args?: readonly unknown[],
+    value?: bigint,
+    successMsg = "Transaction submitted",
+  ) {
+    try {
+      const h = await (writeContractAsync as any)({
+        address: vaultAddress,
+        abi: VAULT_ABI,
+        functionName,
+        args,
+        ...(value !== undefined ? { value } : {}),
+      });
+      setTxHash(h);
+      toast.success(successMsg);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message.slice(0, 80) : "Failed");
+    }
+  }
 
   if (isLoading) {
     return (
@@ -78,43 +101,40 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
   const winner = (data[8].result ?? "0x0") as `0x${string}`;
   const winningPrice = (data[9].result ?? 0n) as bigint;
   const eciesKey = (data[10].result ?? "") as string;
+  const oracle = (data[11].result ?? "0x0") as `0x${string}`;
+  const delivered = (data[12].result ?? false) as boolean;
+  const paymentSubmitted = (data[13].result ?? false) as boolean;
+  const settlementDeadline = (data[14].result ?? 0n) as bigint;
+  const creatorBond = (data[15].result ?? 0n) as bigint;
+  const secondBidder = (data[16].result ?? "0x0") as `0x${string}`;
+  const assetProofHash = (data[17].result ?? "0x") as `0x${string}`;
+  const biddingStartTime = (data[18].result ?? 0n) as bigint;
+  const paused = (data[19].result ?? false) as boolean;
+  const winningBidAmount = (data[20].result ?? 0n) as bigint;
+  const requiresAccreditation = (data[21].result ?? false) as boolean;
 
   const phase = phaseRaw as VaultPhase;
   const status = phaseToStatus(phase, closeTime);
   const isBuyer = userAddress?.toLowerCase() === buyer.toLowerCase();
+  const isWinner = userAddress?.toLowerCase() === winner.toLowerCase();
+  const isOracle = userAddress?.toLowerCase() === oracle.toLowerCase();
+  const ZERO_ADDR = "0x0000000000000000000000000000000000000000";
+  const ZERO_HASH = "0x0000000000000000000000000000000000000000000000000000000000000000";
   const nowSec = Math.floor(Date.now() / 1000);
   const secsToClose = Math.max(0, Number(closeTime) - nowSec);
   const canTriggerReveal = status === "open" && secsToClose === 0;
   const canSettle = phase === VaultPhase.REVEAL && nowSec > Number(revealDeadline) && isBuyer;
   const canCancel = phase === VaultPhase.OPEN && isBuyer;
-
-  async function handleTriggerReveal() {
-    try {
-      const h = await triggerReveal({ address: vaultAddress, abi: VAULT_ABI, functionName: "triggerRevealPhase" });
-      setTriggerHash(h);
-      toast.success("Reveal triggered");
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Failed");
-    }
-  }
-  async function handleSettle() {
-    try {
-      const h = await settle({ address: vaultAddress, abi: VAULT_ABI, functionName: "settle" });
-      setSettleHash(h);
-      toast.success("Settlement submitted");
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Failed");
-    }
-  }
-  async function handleCancel() {
-    try {
-      const h = await cancel({ address: vaultAddress, abi: VAULT_ABI, functionName: "cancel" });
-      setCancelHash(h);
-      toast.success("Cancellation submitted");
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Failed");
-    }
-  }
+  const canSubmitPayment = isWinner && phase === VaultPhase.SETTLED && !paymentSubmitted;
+  const canConfirmDelivery = isOracle && paymentSubmitted && !delivered;
+  const canDisputeDelivery = (isBuyer || isWinner) && paymentSubmitted && !delivered;
+  const canClaimBuyerDefault =
+    isBuyer &&
+    phase === VaultPhase.SETTLED &&
+    !paymentSubmitted &&
+    settlementDeadline > 0n &&
+    nowSec > Number(settlementDeadline);
+  const canReleaseCreatorBond = isBuyer && delivered && creatorBond > 0n;
 
   const rows = [
     { label: "CONTRACT", value: vaultAddress },
@@ -122,13 +142,24 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
     { label: "PHASE", value: PHASE_LABEL[phase] },
     { label: "DEPOSIT", value: formatWei(depositRequired) },
     { label: "CLOSE", value: formatTimestamp(closeTime) },
-    { label: "REVEAL DEADLINE", value: formatTimestamp(revealDeadline) },
+    { label: "REVEAL DL", value: formatTimestamp(revealDeadline) },
     { label: "BID COUNT", value: String(Number(bidCount)) },
+    { label: "CREATOR BOND", value: creatorBond > 0n ? formatWei(creatorBond) : "NONE" },
+    ...(oracle !== ZERO_ADDR ? [{ label: "ORACLE", value: formatAddress(oracle) }] : []),
+    ...(biddingStartTime > 0n ? [{ label: "BIDDING OPENS", value: formatTimestamp(biddingStartTime) }] : []),
     ...(phase === VaultPhase.SETTLED
       ? [
           { label: "WINNER", value: formatAddress(winner) },
           { label: "WINNING PRICE", value: formatWei(winningPrice) },
+          { label: "WINNING BID", value: formatWei(winningBidAmount) },
+          ...(secondBidder !== ZERO_ADDR ? [{ label: "BACKUP BIDDER", value: formatAddress(secondBidder) }] : []),
+          { label: "PAYMENT", value: paymentSubmitted ? "SUBMITTED ✓" : "PENDING" },
+          { label: "DELIVERY", value: delivered ? "CONFIRMED ✓" : "PENDING" },
+          ...(settlementDeadline > 0n ? [{ label: "PAYMENT DL", value: formatTimestamp(settlementDeadline) }] : []),
         ]
+      : []),
+    ...(assetProofHash && assetProofHash !== ZERO_HASH
+      ? [{ label: "ASSET PROOF", value: assetProofHash.slice(0, 18) + "..." }]
       : []),
   ];
 
@@ -136,13 +167,18 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
     <div className="min-h-screen bg-black pt-14">
       {/* Top bar */}
       <div className="border-b border-white">
-        <div className="max-w-5xl mx-auto px-6 py-4">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-4">
           <Link
             href="/auctions"
             className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-30 hover:opacity-100 transition-opacity"
           >
             ← ALL AUCTIONS
           </Link>
+          {paused && (
+            <span className="font-mono text-[10px] uppercase border border-red-400 text-red-400 px-2 py-0.5">
+              PAUSED
+            </span>
+          )}
         </div>
       </div>
 
@@ -225,37 +261,112 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
           )}
 
           {/* Buyer actions */}
-          {isBuyer && (canTriggerReveal || canSettle || canCancel) && (
+          {isBuyer && (canTriggerReveal || canSettle || canCancel || canClaimBuyerDefault || canReleaseCreatorBond) && (
             <div className="border border-white border-t-0 p-6">
               <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-30 mb-4">BUYER ACTIONS</p>
-              <div className="flex gap-0">
+              <div className="flex flex-wrap gap-0">
                 {canTriggerReveal && (
                   <button
-                    onClick={handleTriggerReveal}
-                    disabled={isTriggerPending}
+                    onClick={() => sendTx("triggerRevealPhase", [], undefined, "Reveal triggered")}
+                    disabled={isTxPending}
                     className="border border-white px-4 py-2.5 font-mono text-[10px] uppercase bg-white text-black hover:opacity-80 transition-all disabled:opacity-20"
                   >
-                    {isTriggerPending ? "..." : "TRIGGER REVEAL"}
+                    {isTxPending ? "..." : "TRIGGER REVEAL"}
                   </button>
                 )}
                 {canSettle && (
                   <button
-                    onClick={handleSettle}
-                    disabled={isSettlePending}
+                    onClick={() => sendTx("settle", [], undefined, "Settlement submitted")}
+                    disabled={isTxPending}
                     className="border border-white border-l-0 px-4 py-2.5 font-mono text-[10px] uppercase bg-white text-black hover:opacity-80 transition-all disabled:opacity-20"
                   >
-                    {isSettlePending ? "..." : "SETTLE"}
+                    {isTxPending ? "..." : "SETTLE"}
                   </button>
                 )}
                 {canCancel && (
                   <button
-                    onClick={handleCancel}
-                    disabled={isCancelPending}
+                    onClick={() => sendTx("cancel", [], undefined, "Cancellation submitted")}
+                    disabled={isTxPending}
                     className="border border-white border-l-0 px-4 py-2.5 font-mono text-[10px] uppercase hover:opacity-60 transition-all disabled:opacity-20"
                   >
-                    {isCancelPending ? "..." : "CANCEL"}
+                    {isTxPending ? "..." : "CANCEL"}
                   </button>
                 )}
+                {canClaimBuyerDefault && (
+                  <button
+                    onClick={() => sendTx("claimBuyerDefault", [], undefined, "Default claimed")}
+                    disabled={isTxPending}
+                    className="border border-yellow-400 border-l-0 px-4 py-2.5 font-mono text-[10px] uppercase text-yellow-400 hover:opacity-60 transition-all disabled:opacity-20"
+                  >
+                    {isTxPending ? "..." : "CLAIM DEFAULT"}
+                  </button>
+                )}
+                {canReleaseCreatorBond && (
+                  <button
+                    onClick={() => sendTx("releaseCreatorBond", [], undefined, "Bond released")}
+                    disabled={isTxPending}
+                    className="border border-white border-l-0 px-4 py-2.5 font-mono text-[10px] uppercase hover:opacity-60 transition-all disabled:opacity-20"
+                  >
+                    {isTxPending ? "..." : "RELEASE BOND"}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Settlement panel */}
+          {phase === VaultPhase.SETTLED && (
+            <div className="border border-white border-t-0 p-6">
+              <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-30 mb-4">SETTLEMENT FLOW</p>
+              {isWinner && canSubmitPayment && (
+                <div className="mb-4">
+                  <p className="font-mono text-[10px] uppercase opacity-60 mb-2">
+                    YOU WON — SUBMIT PAYMENT OF {formatWei(winningBidAmount)}
+                  </p>
+                  <button
+                    onClick={() => sendTx("submitPayment", [], winningBidAmount, "Payment submitted")}
+                    disabled={isTxPending}
+                    className="border border-green-400 px-6 py-3 font-mono text-[10px] uppercase text-green-400 bg-green-400/10 hover:bg-green-400/20 transition-all disabled:opacity-20"
+                  >
+                    {isTxPending ? "PROCESSING..." : "SUBMIT PAYMENT"}
+                  </button>
+                </div>
+              )}
+              {isOracle && canConfirmDelivery && (
+                <div className="mb-4">
+                  <p className="font-mono text-[10px] uppercase opacity-60 mb-2">ORACLE: CONFIRM ASSET DELIVERY</p>
+                  <button
+                    onClick={() => sendTx("confirmDelivery", [], undefined, "Delivery confirmed — payment released")}
+                    disabled={isTxPending}
+                    className="border border-green-400 px-6 py-3 font-mono text-[10px] uppercase text-green-400 bg-green-400/10 hover:bg-green-400/20 transition-all disabled:opacity-20"
+                  >
+                    {isTxPending ? "..." : "CONFIRM DELIVERY"}
+                  </button>
+                </div>
+              )}
+              {canDisputeDelivery && (
+                <div className="mb-4">
+                  <p className="font-mono text-[10px] uppercase opacity-60 mb-2">DISPUTE DELIVERY</p>
+                  <button
+                    onClick={() => sendTx("disputeDelivery", [], undefined, "Dispute filed")}
+                    disabled={isTxPending}
+                    className="border border-red-400 px-6 py-3 font-mono text-[10px] uppercase text-red-400 hover:opacity-80 transition-all disabled:opacity-20"
+                  >
+                    {isTxPending ? "..." : "DISPUTE"}
+                  </button>
+                </div>
+              )}
+              <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 gap-2 font-mono text-[10px]">
+                <div
+                  className={`p-2 border ${paymentSubmitted ? "border-green-400/40 text-green-400" : "border-white/10 opacity-40"}`}
+                >
+                  PAYMENT: {paymentSubmitted ? "RECEIVED" : "AWAITING"}
+                </div>
+                <div
+                  className={`p-2 border ${delivered ? "border-green-400/40 text-green-400" : "border-white/10 opacity-40"}`}
+                >
+                  DELIVERY: {delivered ? "CONFIRMED" : "PENDING"}
+                </div>
               </div>
             </div>
           )}
@@ -272,12 +383,18 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
               depositRequired={depositRequired}
               bidCount={bidCount}
               eciesKey={eciesKey}
+              requiresAccreditation={requiresAccreditation}
             />
             <div className="border border-white border-t-0 p-4">
               <p className="font-mono text-[10px] uppercase opacity-30 leading-relaxed">
                 SEALED-BID GUARANTEE: YOUR BID IS COMMITTED AS A HASH. PRICE HIDDEN UNTIL REVEAL. NON-REVEALERS LOSE
                 DEPOSIT.
               </p>
+              {oracle !== ZERO_ADDR && (
+                <p className="font-mono text-[10px] uppercase opacity-20 leading-relaxed mt-2">
+                  ORACLE-GATED SETTLEMENT. PAYMENT HELD IN ESCROW UNTIL DELIVERY CONFIRMED.
+                </p>
+              )}
             </div>
           </div>
         </div>

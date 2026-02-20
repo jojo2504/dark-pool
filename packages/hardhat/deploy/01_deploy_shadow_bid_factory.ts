@@ -4,6 +4,11 @@ import { DeployFunction } from "hardhat-deploy/types";
 /**
  * Deploys ShadowBidFactory to any EVM network.
  *
+ * After deploy:
+ * - Deployer automatically has ADMIN_ROLE + BUYER_ROLE
+ * - The factory manages global KYB state (verified, isAccredited, affiliatedWith)
+ * - All vault creation goes through factory.createVault() with compliance params
+ *
  * Usage:
  *   yarn deploy --network adiTestnet
  *   yarn deploy --network adiMainnet
@@ -25,13 +30,23 @@ const deployShadowBidFactory: DeployFunction = async function (hre: HardhatRunti
 
   console.log(`\n✅ ShadowBidFactory deployed to: ${result.address}`);
 
-  // Grant BUYER_ROLE to deployer so they can create vaults immediately
+  // Deployer already has all roles from constructor, but verify and log
   if (result.newlyDeployed) {
     const factory = await hre.ethers.getContractAt("ShadowBidFactory", result.address);
-    const BUYER_ROLE = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("BUYER_ROLE"));
-    const tx = await factory.grantRole(BUYER_ROLE, deployer);
-    await tx.wait();
-    console.log(`✅ BUYER_ROLE granted to deployer: ${deployer}`);
+
+    // Self-verify the deployer as KYB'd for testing
+    const verifyTx = await factory.verifyInstitution(deployer, true, "0x");
+    await verifyTx.wait();
+    console.log(`✅ Deployer auto-verified for KYB testing: ${deployer}`);
+
+    console.log("\n📋 Factory Roles Summary:");
+    console.log(`   ADMIN_ROLE:  ${deployer}`);
+    console.log(`   BUYER_ROLE:  ${deployer}`);
+    console.log(`   KYB verified: ${deployer}`);
+    console.log("\n📝 Next Steps:");
+    console.log("   1. Set NEXT_PUBLIC_FACTORY_ADDRESS in packages/nextjs/.env.local");
+    console.log("   2. Use factory.verifyInstitution() to KYB users before they bid");
+    console.log("   3. Use factory.grantBuyerRole() to allow auction creation");
   }
 };
 

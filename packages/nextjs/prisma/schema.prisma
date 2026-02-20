@@ -1,0 +1,43 @@
+// Dark Pool — Prisma Schema
+// Run: npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Institution KYB record ───────────────────────────────────────────────────
+model Institution {
+  id                 String    @id @default(cuid())
+  walletAddress      String    @unique
+  sumsubApplicantId  String?   @unique
+  kybStatus          String    @default("not_found")
+  isAccredited       Boolean   @default(false)
+  jurisdiction       String?
+  legalName          String?
+  contactEmail       String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  lastScreenedAt     DateTime?
+  onChainVerified    Boolean   @default(false)
+  onChainTxHash      String?
+  sanctionHit        Boolean   @default(false)
+  sanctionHitDetails String?
+}
+
+// ─── KYB audit trail ─────────────────────────────────────────────────────────
+model KybAuditLog {
+  id            String   @id @default(cuid())
+  walletAddress String
+  action        String
+  fromStatus    String?
+  toStatus      String?
+  meta          String?
+  createdAt     DateTime @default(now())
+
+  @@index([walletAddress])
+}

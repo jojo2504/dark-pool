@@ -16,17 +16,17 @@ const NAV_ITEMS = [
     ],
   },
   {
+    label: "Compliance",
+    links: [
+      { label: "KYB Verification", href: "/kyb", ariaLabel: "KYB institutional verification" },
+      { label: "How It Works", href: "/#how-it-works", ariaLabel: "How the protocol works" },
+    ],
+  },
+  {
     label: "Developer",
     links: [
       { label: "Debug Contracts", href: "/debug", ariaLabel: "Debug contracts" },
       { label: "Block Explorer", href: "/blockexplorer", ariaLabel: "Block explorer" },
-    ],
-  },
-  {
-    label: "Protocol",
-    links: [
-      { label: "How It Works", href: "/#how-it-works", ariaLabel: "How it works" },
-      { label: "Documentation", href: "/debug", ariaLabel: "Documentation" },
     ],
   },
 ];

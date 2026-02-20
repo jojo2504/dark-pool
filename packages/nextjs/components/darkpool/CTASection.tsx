@@ -43,19 +43,27 @@ export function CTASection() {
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
-          className="inline-flex"
+          className="flex flex-col items-center gap-4"
         >
+          <div className="inline-flex">
+            <Link
+              href="/auctions/create"
+              className="border border-white bg-white text-black px-10 py-4 font-mono text-xs tracking-[0.15em] uppercase font-bold hover:opacity-80 transition-all duration-100"
+            >
+              CREATE VAULT
+            </Link>
+            <Link
+              href="/auctions"
+              className="border border-white border-l-0 px-10 py-4 font-mono text-xs tracking-[0.15em] uppercase text-white hover:opacity-60 transition-all duration-100"
+            >
+              BROWSE →
+            </Link>
+          </div>
           <Link
-            href="/auctions/create"
-            className="border border-white bg-white text-black px-10 py-4 font-mono text-xs tracking-[0.15em] uppercase font-bold hover:opacity-80 transition-all duration-100"
+            href="/kyb"
+            className="font-mono text-[10px] uppercase opacity-30 hover:opacity-80 transition-all tracking-[0.15em] underline underline-offset-4"
           >
-            CREATE VAULT
-          </Link>
-          <Link
-            href="/auctions"
-            className="border border-white border-l-0 px-10 py-4 font-mono text-xs tracking-[0.15em] uppercase text-white hover:opacity-60 transition-all duration-100"
-          >
-            BROWSE →
+            INSTITUTIONAL? COMPLETE KYB VERIFICATION FIRST
           </Link>
         </motion.div>
       </div>

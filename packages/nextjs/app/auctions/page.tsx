@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useReadContract } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 import { VaultCard } from "~~/components/darkpool/VaultCard";
 import { FACTORY_ABI } from "~~/lib/contracts";
 import { FACTORY_ADDRESS } from "~~/lib/darkpool-config";
@@ -32,10 +32,37 @@ export default function AuctionsPage() {
     functionName: "getAllVaults",
   });
 
+  const { address: userAddress, isConnected } = useAccount();
+  const ZERO = "0x0000000000000000000000000000000000000000" as `0x${string}`;
+  const { data: isKybVerified } = useReadContract({
+    address: FACTORY_ADDRESS,
+    abi: FACTORY_ABI,
+    functionName: "verified",
+    args: [userAddress ?? ZERO],
+    query: { enabled: !!userAddress },
+  });
+  const showKybBanner = isConnected && isKybVerified === false;
+
   const addresses = (vaultAddresses ?? []) as `0x${string}`[];
 
   return (
     <div className="min-h-screen bg-black pt-14">
+      {/* KYB verification banner */}
+      {showKybBanner && (
+        <div className="border-b border-yellow-400/30 bg-yellow-400/5">
+          <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
+            <p className="font-mono text-[10px] uppercase text-yellow-400/80">
+              ⚠ YOUR WALLET IS NOT KYB VERIFIED — YOU CANNOT BID ON AUCTIONS UNTIL VERIFIED
+            </p>
+            <Link
+              href="/kyb"
+              className="shrink-0 border border-yellow-400/60 text-yellow-400 px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.1em] hover:bg-yellow-400/10 transition-all"
+            >
+              VERIFY NOW →
+            </Link>
+          </div>
+        </div>
+      )}
       {/* Header bar */}
       <div className="border-b border-white">
         <div className="max-w-5xl mx-auto px-6 py-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">

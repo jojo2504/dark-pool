@@ -30,6 +30,9 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
       { ...contract, functionName: "depositRequired" },
       { ...contract, functionName: "getBidCount" },
       { ...contract, functionName: "getCurrentPhase" },
+      { ...contract, functionName: "requiresAccreditation" },
+      { ...contract, functionName: "paused" },
+      { ...contract, functionName: "oracle" },
     ],
   });
 
@@ -63,6 +66,10 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
   const depositRequired = (data[2].result ?? 0n) as bigint;
   const bidCount = (data[3].result ?? 0n) as bigint;
   const phaseRaw = (data[4].result ?? 0) as number;
+  const requiresAccreditation = (data[5].result ?? false) as boolean;
+  const isPaused = (data[6].result ?? false) as boolean;
+  const oracle = (data[7].result ?? "0x0") as string;
+  const hasOracle = oracle !== "0x0000000000000000000000000000000000000000";
 
   const phase = phaseRaw as VaultPhase;
   const status = phaseToStatus(phase, closeTime);
@@ -78,9 +85,26 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
         <div className="group border border-white p-6 hover:opacity-60 transition-all duration-100 cursor-pointer">
           {/* Status */}
           <div className="flex items-center justify-between mb-4">
-            <span className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-40 group-hover:opacity-60">
-              {STATUS_LABEL[status]}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-40 group-hover:opacity-60">
+                {STATUS_LABEL[status]}
+              </span>
+              {isPaused && (
+                <span className="font-mono text-[9px] uppercase border border-red-400 text-red-400 px-1 py-0.5">
+                  PAUSED
+                </span>
+              )}
+              {requiresAccreditation && (
+                <span className="font-mono text-[9px] uppercase border border-yellow-400/60 text-yellow-400/80 px-1 py-0.5">
+                  ACCREDITED
+                </span>
+              )}
+              {hasOracle && (
+                <span className="font-mono text-[9px] uppercase border border-white/20 text-white/40 px-1 py-0.5">
+                  ORACLE
+                </span>
+              )}
+            </div>
             {isOpen && (
               <span className="font-mono text-[10px] tracking-[0.1em] uppercase">{formatTimeLeft(secsLeft)}</span>
             )}
