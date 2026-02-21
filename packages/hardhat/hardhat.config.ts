@@ -133,6 +133,8 @@ const config: HardhatUserConfig = {
       url: process.env.ADI_TESTNET_RPC || "https://rpc.ab.testnet.adifoundation.ai/",
       chainId: 99999,
       accounts: [deployerPrivateKey],
+      // ADI Chain testnet gas cap is 16,777,216 — keep well under it
+      gas: 15_000_000,
     },
     adiMainnet: {
       url: process.env.ADI_MAINNET_RPC || "https://rpc.adifoundation.ai",
