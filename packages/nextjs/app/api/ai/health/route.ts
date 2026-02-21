@@ -44,14 +44,20 @@ async function pingRPC(): Promise<{ ok: boolean; latencyMs: number }> {
 async function checkBrokerProviders(): Promise<{
   count: number;
   services: Array<{ model: string; serviceType: string; provider: string }>;
-} | null> {
+}> {
+  if (!process.env.OG_PRIVATE_KEY) {
+    console.warn("[0G Health] OG_PRIVATE_KEY manquant — broker check ignoré");
+    return { count: 0, services: [] };
+  }
+
   try {
-    if (!process.env.OG_PRIVATE_KEY) return null;
     const { getBroker } = await import("~~/services/og/broker");
     const broker = await getBroker();
-    const services = await broker.inference.listService();
+    const rawServices = await broker.inference.listService();
 
-    console.log("[0G Health] Tous les services :", JSON.stringify(services));
+    console.log("[0G Health] Tous les services :", JSON.stringify(rawServices));
+
+    const services = Array.isArray(rawServices) ? rawServices : [];
 
     // Accepter chatbot ET inference comme types LLM valides
     const llmTypes = ["chatbot", "inference", "chat", "llm"];
@@ -60,14 +66,14 @@ async function checkBrokerProviders(): Promise<{
     return {
       count: llmProviders.length,
       services: services.map((s: any) => ({
-        model: s.model,
-        serviceType: s.serviceType,
+        model: s.model ?? "unknown",
+        serviceType: s.serviceType ?? "unknown",
         provider: typeof s.provider === "string" ? s.provider.slice(0, 10) + "..." : "unknown",
       })),
     };
-  } catch (e) {
-    console.error("[0G Health] Broker check failed:", e);
-    return null;
+  } catch (e: any) {
+    console.error("[0G Health] Broker check failed:", e.message);
+    return { count: 0, services: [] };
   }
 }
 
@@ -95,15 +101,15 @@ export async function GET() {
     return NextResponse.json(response);
   }
 
-  // Step 2: try broker provider check (optional, needs OG_PRIVATE_KEY)
+  // Step 2: broker provider check
   const brokerResult = await checkBrokerProviders();
 
   const response: HealthResponse = {
-    status: brokerResult === null ? "ok" : brokerResult.count > 0 ? "ok" : "degraded",
-    providerCount: brokerResult?.count ?? -1, // -1 = not checked (no key)
+    status: brokerResult.count > 0 ? "ok" : "degraded",
+    providerCount: brokerResult.count,
     latencyMs: rpc.latencyMs,
     checkedAt: now,
-    services: brokerResult?.services,
+    services: brokerResult.services,
   };
 
   _lastHealthCheck = response;
