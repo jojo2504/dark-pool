@@ -7,6 +7,7 @@ interface HealthResponse {
   providerCount: number;
   latencyMs: number;
   checkedAt: number;
+  services?: Array<{ model: string; serviceType: string; provider: string }>;
   error?: string;
 }
 
@@ -37,18 +38,35 @@ async function pingRPC(): Promise<{ ok: boolean; latencyMs: number }> {
 }
 
 /**
- * Optional deeper check using the broker (requires OG_PRIVATE_KEY).
- * Returns provider count or null if unavailable.
+ * Deeper check using the broker — lists services and filters for LLM types.
+ * Accepts "chatbot", "inference", "chat", "llm" serviceTypes.
  */
-async function checkBrokerProviders(): Promise<number | null> {
+async function checkBrokerProviders(): Promise<{
+  count: number;
+  services: Array<{ model: string; serviceType: string; provider: string }>;
+} | null> {
   try {
     if (!process.env.OG_PRIVATE_KEY) return null;
-    // Dynamic import to avoid failing when key is missing
     const { getBroker } = await import("~~/services/og/broker");
     const broker = await getBroker();
     const services = await broker.inference.listService();
-    return services.filter((s: any) => s.serviceType === "inference").length;
-  } catch {
+
+    console.log("[0G Health] Tous les services :", JSON.stringify(services));
+
+    // Accepter chatbot ET inference comme types LLM valides
+    const llmTypes = ["chatbot", "inference", "chat", "llm"];
+    const llmProviders = services.filter((s: any) => llmTypes.includes(s.serviceType?.toLowerCase()));
+
+    return {
+      count: llmProviders.length,
+      services: services.map((s: any) => ({
+        model: s.model,
+        serviceType: s.serviceType,
+        provider: typeof s.provider === "string" ? s.provider.slice(0, 10) + "..." : "unknown",
+      })),
+    };
+  } catch (e) {
+    console.error("[0G Health] Broker check failed:", e);
     return null;
   }
 }
@@ -78,13 +96,14 @@ export async function GET() {
   }
 
   // Step 2: try broker provider check (optional, needs OG_PRIVATE_KEY)
-  const providerCount = await checkBrokerProviders();
+  const brokerResult = await checkBrokerProviders();
 
   const response: HealthResponse = {
-    status: providerCount === null ? "ok" : providerCount > 0 ? "ok" : "degraded",
-    providerCount: providerCount ?? -1, // -1 = not checked (no key)
+    status: brokerResult === null ? "ok" : brokerResult.count > 0 ? "ok" : "degraded",
+    providerCount: brokerResult?.count ?? -1, // -1 = not checked (no key)
     latencyMs: rpc.latencyMs,
     checkedAt: now,
+    services: brokerResult?.services,
   };
 
   _lastHealthCheck = response;

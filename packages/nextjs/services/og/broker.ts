@@ -42,25 +42,27 @@ export async function getBroker() {
 
 /**
  * Vérifie le solde du ledger et crée/alimente le compte si nécessaire.
- * Minimum recommandé : 0.1 OG (~10 000 requêtes d'inférence).
+ * Utilise depositFund (API officielle 0G) — prend un number en argument.
  */
 export async function ensureLedgerFunded(broker: OGBroker) {
   try {
     const account = await broker.ledger.getLedger();
     const balance = parseFloat(ethers.formatEther((account as any).balance ?? 0n));
+    console.log(`[0G] Solde ledger : ${balance} OG`);
 
     if (balance < 0.01) {
-      await broker.ledger.addLedger(0.1 as any);
-      console.log("[0G] Ledger créé et alimenté : 0.1 OG");
+      console.log("[0G] Solde insuffisant, tentative de dépôt...");
+      await broker.ledger.depositFund(1); // 1 OG token
+      console.log("[0G] Dépôt effectué : 1 OG");
     }
   } catch {
-    // Le ledger n'existe pas encore, on le crée
+    // Ledger inexistant — créer avec depositFund
     try {
-      await broker.ledger.addLedger(0.1 as any);
-      console.log("[0G] Nouveau ledger créé : 0.1 OG");
-    } catch (e) {
-      console.error("[0G] Impossible de créer le ledger :", e);
-      throw new Error("Solde OG insuffisant sur le wallet serveur. Utilise le faucet 0G.");
+      await broker.ledger.depositFund(1);
+      console.log("[0G] Ledger créé avec 1 OG");
+    } catch (e2: any) {
+      console.error("[0G] Impossible de créer le ledger :", e2.message);
+      // Non bloquant — continuer même sans ledger (le fallback prendra le relais)
     }
   }
 }
@@ -69,35 +71,70 @@ export type OGBroker = Awaited<ReturnType<typeof createZGComputeNetworkBroker>>;
 
 /**
  * Récupère le meilleur provider LLM disponible sur le réseau 0G.
- * Filtre par type de service "inference" et présence d'un modèle de langage.
+ * IMPORTANT : le testnet 0G utilise serviceType "chatbot" (PAS "inference").
+ * Les deux sont acceptés ici pour compatibilité.
  */
 export async function selectBestLLMProvider(broker: OGBroker): Promise<string> {
   const services = await broker.inference.listService();
 
+  console.log("[0G] Services disponibles :", JSON.stringify(services, null, 2));
+
   if (!services || services.length === 0) {
-    throw new Error("Aucun service disponible sur 0G Compute. Réseau indisponible ou timeout.");
+    throw new Error("Aucun service disponible sur 0G Compute.");
   }
 
-  // Priorité : modèles LLM connus (llama, deepseek, qwen, mistral, gpt)
-  const llmKeywords = ["llama", "deepseek", "qwen", "mistral", "gpt", "llm", "chat"];
+  // IMPORTANT : selon la doc officielle 0G, le serviceType LLM est "chatbot"
+  // pas "inference". Les deux sont acceptés ici pour compatibilité.
+  const llmKeywords = ["llama", "deepseek", "qwen", "mistral", "gpt", "llm", "chat", "glm"];
+  const llmTypes = ["chatbot", "inference", "chat", "llm"];
 
   const llmService =
+    // Priorité 1 : chatbot avec modèle LLM connu
     services.find(
-      (s: any) => s.serviceType === "inference" && llmKeywords.some(kw => s.model?.toLowerCase().includes(kw)),
+      (s: any) =>
+        llmTypes.includes(s.serviceType?.toLowerCase()) && llmKeywords.some(kw => s.model?.toLowerCase().includes(kw)),
     ) ||
-    services.find((s: any) => s.serviceType === "inference") ||
+    // Priorité 2 : n'importe quel chatbot/inference
+    services.find((s: any) => llmTypes.includes(s.serviceType?.toLowerCase())) ||
+    // Priorité 3 : premier service disponible
     services[0];
 
   if (!llmService) throw new Error("Aucun provider LLM trouvé sur le réseau 0G");
 
+  const providerAddress = (llmService as any).provider;
+  console.log(
+    `[0G] Provider sélectionné : ${(llmService as any).model} (${(llmService as any).serviceType}) @ ${providerAddress}`,
+  );
+
   // Obligatoire avant d'utiliser un provider pour la première fois
   try {
-    await broker.inference.acknowledgeProviderSigner((llmService as any).provider);
+    await broker.inference.acknowledgeProviderSigner(providerAddress);
+    console.log("[0G] Provider acquitté");
   } catch {
     // Déjà acquitté — ignorer l'erreur
   }
 
-  return (llmService as any).provider;
+  return providerAddress;
+}
+
+/**
+ * Transfère des fonds vers le sub-account du provider.
+ * Requis par le protocole 0G avant de faire des requêtes.
+ */
+export async function ensureProviderFunded(broker: OGBroker, providerAddress: string) {
+  try {
+    await (broker as any).transferFund(providerAddress, 0.5);
+    console.log(`[0G] 0.5 OG transférés vers le provider ${providerAddress.slice(0, 10)}...`);
+  } catch {
+    // Essayer via ledger si la méthode n'est pas sur le broker principal
+    try {
+      await (broker.ledger as any).transferFund(providerAddress, 0.5);
+      console.log(`[0G] 0.5 OG transférés (via ledger) vers ${providerAddress.slice(0, 10)}...`);
+    } catch (e2: any) {
+      // Non bloquant — continuer sans transfert, le fallback prendra le relais
+      console.warn("[0G] transferFund non-bloquant :", e2.message);
+    }
+  }
 }
 
 // ─── Cache provider côté serveur ────────────────────────────────────────────
@@ -121,11 +158,15 @@ export async function getCachedProvider(broker: OGBroker): Promise<CachedProvide
   const now = Date.now();
 
   if (_providerCache && now - _providerCache.cachedAt < PROVIDER_CACHE_TTL_MS) {
+    console.log(`[0G Cache] Provider depuis cache : ${_providerCache.model}`);
     return _providerCache;
   }
 
   const providerAddress = await selectBestLLMProvider(broker);
+  await ensureProviderFunded(broker, providerAddress);
   const { endpoint, model } = await broker.inference.getServiceMetadata(providerAddress);
+
+  console.log(`[0G] Metadata provider — model: ${model}, endpoint: ${endpoint}`);
 
   _providerCache = {
     address: providerAddress,
@@ -134,7 +175,6 @@ export async function getCachedProvider(broker: OGBroker): Promise<CachedProvide
     cachedAt: now,
   };
 
-  console.log(`[0G Cache] Provider cached: ${model} @ ${endpoint}`);
   return _providerCache;
 }
 
@@ -208,6 +248,9 @@ export async function runInference(
     throw new Error(`0G HTTP ${response.status}: ${errText}`);
   }
 
+  // Extraire chatID depuis les headers de réponse (méthode officielle 0G)
+  const chatID = response.headers.get("ZG-Res-Key") || response.headers.get("zg-res-key") || undefined;
+
   // Lire le body avec protection contre les réponses vides
   const rawText = await response.text().catch(() => "");
   if (!rawText || rawText.trim() === "") {
@@ -227,9 +270,14 @@ export async function runInference(
     throw new Error("Contenu vide dans la réponse 0G Compute");
   }
 
-  // Règlement des frais après réception — OBLIGATOIRE selon le protocole 0G
+  // Extraire usage depuis la réponse
+  const usage = data.usage ? JSON.stringify(data.usage) : undefined;
+
+  // Règlement des frais — 3 arguments selon le protocole 0G officiel
+  // (providerAddress, chatID | undefined, usage | undefined)
   try {
-    await broker.inference.processResponse(cached.address, content);
+    await broker.inference.processResponse(cached.address, chatID, usage);
+    console.log("[0G] processResponse OK — frais réglés");
   } catch (e) {
     console.warn("[0G] processResponse non-bloquant :", e);
   }
