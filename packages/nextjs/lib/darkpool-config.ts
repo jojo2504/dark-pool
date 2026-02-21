@@ -3,14 +3,29 @@
 // Fallback: hardcoded address from the last deployment — avoids a circular
 // import that would occur if we imported deployedContracts.ts here
 // (deployedContracts → contract.ts → deployedContracts again).
-export const FACTORY_ADDRESS = (process.env.NEXT_PUBLIC_FACTORY_ADDRESS ??
-  "0xbF8F2953af175aDb72e51B95e9C8157fA2398622") as `0x${string}`;
+function normalizeEnvAddress(value: string | undefined, fallback: string): `0x${string}` {
+  let v = value ?? "";
+  v = v
+    .replace(/^\s*["']?/, "")
+    .replace(/["']?\s*$/, "")
+    .trim();
+  if (!v) return fallback as `0x${string}`;
+  if (!v.startsWith("0x")) v = `0x${v}`;
+  return v as `0x${string}`;
+}
+
+export const FACTORY_ADDRESS = normalizeEnvAddress(
+  process.env.NEXT_PUBLIC_FACTORY_ADDRESS,
+  "0xbF8F2953af175aDb72e51B95e9C8157fA2398622",
+);
 
 // DDSC: UAE Central Bank-licensed dirham stablecoin on ADI Chain.
 // Settlement is always DDSC — ADI (native) is used only for gas fees and bid deposits.
 // https://adifoundation.ai/ddsc
-export const DDSC_ADDRESS = (process.env.NEXT_PUBLIC_DDSC_ADDRESS ??
-  "0x0000000000000000000000000000000000000000") as `0x${string}`;
+export const DDSC_ADDRESS = normalizeEnvAddress(
+  process.env.NEXT_PUBLIC_DDSC_ADDRESS,
+  "0x0000000000000000000000000000000000000000",
+);
 
 // Optional ERC-20 token addresses for the wallet balance widget.
 // Set these in .env once the tokens are deployed on ADI testnet.

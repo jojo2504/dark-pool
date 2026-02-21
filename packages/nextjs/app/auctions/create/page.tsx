@@ -40,6 +40,8 @@ const schema = z.object({
   requiresAccreditation: z.boolean().default(false),
   allowedJurisdictionsRaw: z.string().optional(),
   reviewWindowHours: z.coerce.number().min(0).default(0),
+  // Settlement token (auto-selected DDSC)
+  settlementToken: z.string().default(DDSC_ADDRESS),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -100,6 +102,7 @@ export default function CreateAuctionPage() {
       oracleTimeoutDays: 30,
       reviewWindowHours: 0,
       requiresAccreditation: false,
+      settlementToken: DDSC_ADDRESS,
     },
   });
 
@@ -153,7 +156,11 @@ export default function CreateAuctionPage() {
 
       const creatorBond = computeBond(pendingData.declaredAssetValueEth ?? "");
 
-      const settlementTokenAddress = DDSC_ADDRESS;
+      const settlementTokenAddress = (pendingData.settlementToken ?? DDSC_ADDRESS) as `0x${string}`;
+
+      if (!settlementTokenAddress || settlementTokenAddress === "0x0000000000000000000000000000000000000000") {
+        throw new Error("Settlement token not configured — set NEXT_PUBLIC_DDSC_ADDRESS to a valid token address");
+      }
 
       const hash = await writeContractAsync({
         address: FACTORY_ADDRESS,
