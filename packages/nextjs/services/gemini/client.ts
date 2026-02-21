@@ -36,9 +36,6 @@ export async function isGeminiAvailable(): Promise<boolean> {
   }
 }
 
-// Export getGeminiClient for health check
-export { getGeminiClient };
-
 /**
  * Effectue une requête d'inférence via Groq (principal), Gemini Flash, ou OpenAI.
  * Priorité : Groq → OpenAI → Gemini

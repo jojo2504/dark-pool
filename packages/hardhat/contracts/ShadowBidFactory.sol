@@ -169,18 +169,18 @@ contract ShadowBidFactory is AccessControl {
         address clone = Clones.clone(vaultImpl);
         IShadowBidVaultInit(clone).initialize{ value: msg.value }(
             address(this), // factory (KYB oracle)
-            msg.sender,    // platformAdmin
+            msg.sender, // platformAdmin
             _oracle,
             _assetProofHash,
             _declaredAssetValue,
-            address(0),    // no tokenized asset (can add later)
+            address(0), // no tokenized asset (can add later)
             0,
             _requiresAccreditation,
             _allowedJurisdictions,
             _settlementToken,
             _settlementWindow,
             _oracleTimeout,
-            msg.sender,    // buyer = vault creator
+            msg.sender, // buyer = vault creator
             _title,
             _description,
             _closeTime,
