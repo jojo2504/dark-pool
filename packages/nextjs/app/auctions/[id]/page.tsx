@@ -156,8 +156,8 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
     ...(phase === VaultPhase.SETTLED
       ? [
           { label: "WINNER", value: formatAddress(winner) },
-          { label: "WINNING PRICE", value: formatWei(winningPrice) },
-          { label: "WINNING BID", value: formatWei(winningBidAmount) },
+          { label: "WINNING PRICE", value: formatWei(winningPrice, "DDSC") },
+          { label: "WINNING BID", value: formatWei(winningBidAmount, "DDSC") },
           ...(secondBidder !== ZERO_ADDRESS ? [{ label: "BACKUP BIDDER", value: formatAddress(secondBidder) }] : []),
           { label: "PAYMENT", value: paymentSubmitted ? "SUBMITTED ✓" : "PENDING" },
           { label: "DELIVERY", value: delivered ? "CONFIRMED ✓" : "PENDING" },
@@ -347,7 +347,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
               {isWinner && canSubmitPayment && (
                 <div className="mb-4">
                   <p className="font-mono text-[10px] uppercase opacity-100 mb-2">
-                    YOU WON — SUBMIT DDSC PAYMENT OF {formatWei(winningBidAmount)}
+                    YOU WON — SUBMIT DDSC PAYMENT OF {formatWei(winningBidAmount, "DDSC")}
                   </p>
                   <p className="font-mono text-[9px] uppercase opacity-40 mb-3">STEP 1: APPROVE · STEP 2: SUBMIT</p>
                   <div className="flex gap-0">

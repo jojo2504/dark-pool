@@ -28,7 +28,7 @@ const schema = z.object({
           .split(",")
           .map(s => s.trim())
           .some(s => /^0x[0-9a-fA-F]{40}$/.test(s)),
-      { message: "Enter at least one valid Ethereum address (0x followed by 40 hex chars)" },
+      { message: "Enter at least one valid wallet address (0x followed by 40 hex chars)" },
     ),
   buyerECIESPubKey: z.string().min(1),
   // Compliance

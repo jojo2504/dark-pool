@@ -19,7 +19,7 @@ const FEATURES = [
   {
     id: "03",
     title: "Deposit Collateral",
-    description: "All bids require ETH deposit as collateral. Prevents spam, ensures seriousness. Refunded on reveal.",
+    description: "All bids require ADI deposit as collateral. Prevents spam, ensures seriousness. Refunded on reveal.",
   },
   {
     id: "04",

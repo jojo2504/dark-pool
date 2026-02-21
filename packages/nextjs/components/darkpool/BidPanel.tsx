@@ -401,10 +401,12 @@ export function BidPanel({
                   <div className="px-4 py-2.5">
                     <p className="font-mono text-[9px] tracking-[0.15em] uppercase opacity-50 mb-1">BID PRICE</p>
                     {userHasRevealed ? (
-                      <p className="font-mono text-sm font-bold text-white">{formatWei(userBid[2] as bigint)}</p>
+                      <p className="font-mono text-sm font-bold text-white">
+                        {formatWei(userBid[2] as bigint, "DDSC")}
+                      </p>
                     ) : savedBidData?.priceEth ? (
                       <div>
-                        <p className="font-mono text-sm font-bold text-white">{savedBidData.priceEth} ETH</p>
+                        <p className="font-mono text-sm font-bold text-white">{savedBidData.priceEth} DDSC</p>
                         <p className="font-mono text-[9px] opacity-40 mt-0.5">
                           STORED LOCALLY — HIDDEN ON-CHAIN UNTIL REVEAL
                         </p>
@@ -560,7 +562,7 @@ export function BidPanel({
             <div className="space-y-3">
               <div>
                 <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 block mb-2">
-                  BID PRICE (ETH)
+                  BID PRICE (DDSC)
                 </label>
                 <input
                   type="number"
@@ -643,7 +645,7 @@ export function BidPanel({
               </div>
               <div>
                 <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 block mb-2">
-                  NEW BID PRICE (ETH)
+                  NEW BID PRICE (DDSC)
                 </label>
                 <input
                   type="number"
@@ -725,7 +727,7 @@ export function BidPanel({
               </div>
               <div>
                 <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 block mb-2">
-                  COMMITTED PRICE (ETH)
+                  COMMITTED PRICE (DDSC)
                 </label>
                 <input
                   type="number"

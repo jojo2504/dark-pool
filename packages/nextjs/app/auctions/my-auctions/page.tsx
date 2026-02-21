@@ -129,7 +129,7 @@ function VaultRow({
             </span>
             <span>
               <span className="opacity-100">PRICE: </span>
-              <span className="font-bold">{formatWei(vault.winningPrice)}</span>
+              <span className="font-bold">{formatWei(vault.winningPrice, "DDSC")}</span>
             </span>
             <span>
               <span className="opacity-100">PAYMENT: </span>

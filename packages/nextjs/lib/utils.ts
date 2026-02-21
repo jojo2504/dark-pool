@@ -9,7 +9,7 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Format a native token amount (wei, bigint) into a human-readable string.
  */
-export function formatWei(amount: bigint | string | number, symbol = "ETH", decimals = 4): string {
+export function formatWei(amount: bigint | string | number, symbol = "ADI", decimals = 4): string {
   const wei = BigInt(amount.toString().split(".")[0]);
   const human = Number(formatEther(wei));
   return `${human.toLocaleString("en-US", {

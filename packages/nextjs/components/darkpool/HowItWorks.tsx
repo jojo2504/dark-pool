@@ -12,7 +12,7 @@ const STEPS = [
   {
     id: "02",
     title: "Commit Bid",
-    description: "Suppliers hash their price + salt and submit on-chain with ETH deposit. Bid remains sealed.",
+    description: "Suppliers hash their price + salt and submit on-chain with ADI deposit. Bid remains sealed.",
   },
   {
     id: "03",
