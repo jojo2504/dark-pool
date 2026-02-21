@@ -471,6 +471,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
               bidCount={bidCount}
               buyer={buyer}
               requiresAccreditation={requiresAccreditation}
+              onBidSuccess={refetch}
             />
             <div className="border border-white border-t-0 p-4">
               <p className="font-mono text-[10px] uppercase opacity-100 leading-relaxed">

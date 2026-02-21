@@ -29,6 +29,7 @@ interface BidPanelProps {
   bidCount: bigint;
   buyer: `0x${string}`;
   requiresAccreditation: boolean;
+  onBidSuccess?: () => void;
 }
 
 // MUST match the EIP-712 domain name in ShadowBidVault constructor: EIP712("DarkPool", "1")
@@ -77,6 +78,7 @@ export function BidPanel({
   bidCount,
   buyer,
   requiresAccreditation,
+  onBidSuccess,
 }: BidPanelProps) {
   const { address: userAddress, isConnected } = useAccount();
   const chainId = useChainId();
@@ -106,7 +108,7 @@ export function BidPanel({
     query: { enabled: !!userAddress },
   });
 
-  const { data: userBid } = useReadContract({
+  const { data: userBid, refetch: refetchUserBid } = useReadContract({
     address: vaultAddress,
     abi: VAULT_ABI,
     functionName: "bids",
@@ -170,6 +172,14 @@ export function BidPanel({
   const { writeContractAsync: doUpdate, isPending: isUpdatePending } = useWriteContract();
   const [updateTxHash, setUpdateTxHash] = useState<`0x${string}` | undefined>();
   const { isSuccess: isUpdateSuccess } = useWaitForTransactionReceipt({ hash: updateTxHash });
+
+  // Refetch on-chain data after any successful bid action
+  useEffect(() => {
+    if (isCommitSuccess || isUpdateSuccess || isRevealSuccess) {
+      void refetchUserBid();
+      onBidSuccess?.();
+    }
+  }, [isCommitSuccess, isUpdateSuccess, isRevealSuccess]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
   async function handleSignAndAttest() {
@@ -365,7 +375,7 @@ export function BidPanel({
           </div>
 
           {/* User's own bid details */}
-          {isConnected && userHasCommitted && !isBuyer && (
+          {isConnected && (userHasCommitted || savedBidData !== null) && !isBuyer && (
             <div className="border border-green-400/30">
               {/* Header */}
               <div className="flex items-center justify-between px-4 pt-4 pb-2">
@@ -558,7 +568,7 @@ export function BidPanel({
           )}
 
           {/* COMMIT */}
-          {isOpen && !userHasCommitted && !isCommitSuccess && canBid && (
+          {isOpen && !userHasCommitted && !isCommitSuccess && !commitTxHash && canBid && (
             <div className="space-y-3">
               <div>
                 <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 block mb-2">
@@ -709,13 +719,32 @@ export function BidPanel({
             </div>
           )}
 
-          {/* COMMITTED — waiting for reveal phase */}
-          {(isCommitSuccess || isUpdateSuccess || (isOpen && userHasCommitted)) && !isReveal && !isModifying && (
-            <div className="border border-white p-6 text-center">
-              <p className="font-mono text-xs font-bold uppercase tracking-[0.1em] mb-1">BID COMMITTED</p>
-              <p className="font-mono text-[10px] uppercase opacity-100">REVEAL AFTER AUCTION CLOSES</p>
+          {/* TX CONFIRMING */}
+          {commitTxHash && !isCommitSuccess && !userHasCommitted && (
+            <div className="border border-white/40 p-5 text-center space-y-2">
+              <p className="font-mono text-xs uppercase font-bold animate-pulse">CONFIRMING TRANSACTION...</p>
+              <p className="font-mono text-[10px] uppercase opacity-50">WAITING FOR BLOCK INCLUSION</p>
+              <a
+                href={`https://explorer.ab.testnet.adifoundation.ai/tx/${commitTxHash}`}
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono text-[10px] text-white/60 hover:text-white underline block"
+              >
+                VIEW TX ↗
+              </a>
             </div>
           )}
+
+          {/* COMMITTED — waiting for reveal phase */}
+          {(isCommitSuccess || isUpdateSuccess || (isOpen && userHasCommitted)) &&
+            !isReveal &&
+            !isModifying &&
+            savedBidData === null && (
+              <div className="border border-white p-6 text-center">
+                <p className="font-mono text-xs font-bold uppercase tracking-[0.1em] mb-1">BID COMMITTED</p>
+                <p className="font-mono text-[10px] uppercase opacity-100">REVEAL AFTER AUCTION CLOSES</p>
+              </div>
+            )}
 
           {/* REVEAL */}
           {isReveal && userHasCommitted && !userHasRevealed && !isRevealSuccess && canBid && (

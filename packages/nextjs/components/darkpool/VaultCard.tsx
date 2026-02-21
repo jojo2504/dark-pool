@@ -40,10 +40,12 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
     abi: VAULT_ABI,
     functionName: "bids",
     args: [userAddress ?? ZERO_ADDRESS],
-    query: { enabled: !!userAddress },
+    query: { enabled: !!userAddress, refetchInterval: 8_000 },
   });
 
   const userHasBid = userBid && (userBid as any)[0] !== ZERO_HASH;
+  const userBidRevealed = userHasBid && (userBid as any)[3] === true;
+  const userRevealedPrice = userBidRevealed ? ((userBid as any)[2] as bigint) : null;
 
   if (isLoading) {
     return (
@@ -145,6 +147,18 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
               <span className="font-bold">{formatWei(depositRequired)}</span>
             </span>
           </div>
+
+          {/* My bid info */}
+          {userHasBid && (
+            <div className="mt-3 border-t border-white/10 pt-3 flex items-center justify-between font-mono text-[10px]">
+              <span className="opacity-60">YOUR BID</span>
+              {userRevealedPrice !== null ? (
+                <span className="font-bold text-green-400">{formatWei(userRevealedPrice, "DDSC")}</span>
+              ) : (
+                <span className="text-white/50 tracking-widest">● ● ● SEALED</span>
+              )}
+            </div>
+          )}
 
           {/* Arrow */}
           <div className="mt-4 text-right font-mono text-xs opacity-0 group-hover:opacity-60 transition-opacity">→</div>
