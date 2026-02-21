@@ -47,7 +47,8 @@ const deployShadowBidFactory: DeployFunction = async function (hre: HardhatRunti
     const factory = await hre.ethers.getContractAt("ShadowBidFactory", result.address);
 
     // Self-verify the deployer as KYB'd for testing (jurisdiction="UAE", sig=0x for on-chain-only auth)
-    const verifyTx = await factory.verifyInstitution(deployer, true, "UAE", "0x");
+    // Explicit gasLimit required — ADI Chain caps txs at 16,777,216 gas
+    const verifyTx = await factory.verifyInstitution(deployer, true, "UAE", "0x", { gasLimit: 300_000 });
     await verifyTx.wait();
     console.log(`✅ Deployer auto-verified for KYB testing: ${deployer}`);
 
