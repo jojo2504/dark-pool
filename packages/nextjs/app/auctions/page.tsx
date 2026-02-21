@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useAccount, useReadContract } from "wagmi";
+import { BenchmarkWidget } from "~~/components/ai/BenchmarkWidget";
 import { VaultCard } from "~~/components/darkpool/VaultCard";
 import { FACTORY_ABI } from "~~/lib/contracts";
 import { FACTORY_ADDRESS, ZERO_ADDRESS } from "~~/lib/darkpool-config";
@@ -110,6 +111,13 @@ export default function AuctionsPage() {
             placeholder="SEARCH ADDRESS..."
             className="bg-black border border-white/50 px-4 py-2 font-mono text-xs text-white placeholder:text-white/40 w-full sm:w-64 focus:outline-none focus:border-white transition-all duration-100"
           />
+        </div>
+      </div>
+
+      {/* AI Market Benchmark */}
+      <div className="border-b border-white">
+        <div className="max-w-5xl mx-auto px-6 py-6">
+          <BenchmarkWidget category="General" recentAuctions={[]} />
         </div>
       </div>
 

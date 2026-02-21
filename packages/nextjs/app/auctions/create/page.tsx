@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import { keccak256, parseEther, toBytes, zeroAddress } from "viem";
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { z } from "zod";
+import { RFPGeneratorWidget } from "~~/components/ai/RFPGeneratorWidget";
 import { FACTORY_ABI } from "~~/lib/contracts";
 import { DDSC_ADDRESS, FACTORY_ADDRESS, SETTLEMENT_TOKENS } from "~~/lib/darkpool-config";
 
@@ -342,6 +343,11 @@ export default function CreateAuctionPage() {
               SETTLEMENT
             </button>
           </div>
+        </div>
+
+        {/* AI RFP Generator */}
+        <div className="max-w-3xl mx-auto px-6 pt-6">
+          <RFPGeneratorWidget />
         </div>
 
         {/* Form */}

@@ -4,6 +4,11 @@ import { use, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { useAccount, useReadContracts, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { BidDraftWidget } from "~~/components/ai/BidDraftWidget";
+import { BidScoringWidget } from "~~/components/ai/BidScoringWidget";
+import { CategoryWidget } from "~~/components/ai/CategoryWidget";
+import { LotAnalysisWidget } from "~~/components/ai/LotAnalysisWidget";
+import { LowBidDetectWidget } from "~~/components/ai/LowBidDetectWidget";
 import { BidPanel } from "~~/components/darkpool/BidPanel";
 import { Countdown } from "~~/components/darkpool/Countdown";
 import { VAULT_ABI } from "~~/lib/contracts";
@@ -268,6 +273,9 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
           </div>
 
           {/* ECIES key */}
+          {/* AI Category */}
+          <CategoryWidget title={title} description={description} />
+
           {eciesKey && (
             <div className="border border-white border-t-0 p-6">
               <p className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-100 mb-3">ECIES PUBLIC KEY</p>
@@ -385,6 +393,33 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
               </div>
             </div>
           )}
+          {/* AI Lot Analysis (Provider, OPEN/REVEAL phase) */}
+          {!isBuyer && (status === "open" || status === "reveal") && (
+            <LotAnalysisWidget
+              auctionTitle={title}
+              auctionDescription={description}
+              depositRequired={formatWei(depositRequired)}
+              closeTime={Number(closeTime)}
+            />
+          )}
+
+          {/* AI Bid Scoring (Buyer, SETTLED phase) */}
+          {isBuyer && phase === VaultPhase.SETTLED && (
+            <BidScoringWidget
+              auctionTitle={title}
+              auctionDescription={description}
+              revealedBids={[]} // Will be populated when bid reveal data is available
+            />
+          )}
+
+          {/* AI Low Bid Detection (Buyer, SETTLED phase) */}
+          {isBuyer && phase === VaultPhase.SETTLED && (
+            <LowBidDetectWidget
+              auctionTitle={title}
+              auctionDescription={description}
+              revealedBids={[]} // Will be populated when bid reveal data is available
+            />
+          )}
         </div>
 
         {/* Right: Bid panel */}
@@ -410,6 +445,11 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
                 </p>
               )}
             </div>
+
+            {/* AI Bid Draft (Provider, OPEN phase) */}
+            {!isBuyer && status === "open" && (
+              <BidDraftWidget auctionTitle={title} auctionDescription={description} providerPrice={0} />
+            )}
           </div>
         </div>
       </div>
