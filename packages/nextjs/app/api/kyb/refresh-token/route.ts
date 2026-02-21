@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       where: { walletAddress: walletAddress.toLowerCase() },
     });
 
-    if (!institution || !institution.sumsubExternalId) {
+    if (!institution || !institution.sumsubApplicantId) {
       return NextResponse.json({ error: "Institution not found" }, { status: 404 });
     }
 
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Generate new access token
-    const accessToken = await generateAccessToken(institution.sumsubExternalId);
+    const accessToken = await generateAccessToken(institution.sumsubApplicantId);
 
     return NextResponse.json({
       token: accessToken.token,

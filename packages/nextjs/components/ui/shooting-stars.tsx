@@ -116,6 +116,7 @@ export function ShootingStars({
 
     frameRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frameRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [maxDelay, maxSpeed, minDelay, minSpeed, starColor, starHeight, starWidth, trailColor]);
 
   return <svg ref={svgRef} className={cn("absolute inset-0 w-full h-full pointer-events-none", className)} />;
