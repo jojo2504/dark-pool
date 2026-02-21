@@ -213,6 +213,8 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
         require(!_initialized, "Already initialized");
         _initialized = true;
 
+        require(_settlementToken != address(0), "Settlement token required");
+
         if (_declaredAssetValue > 0) {
             uint256 requiredBond = (_declaredAssetValue * 5) / 1000;
             if (requiredBond < 0.01 ether) requiredBond = 0.01 ether;
@@ -419,17 +421,13 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
 
     // ─── Payment Submission ───────────────────────────────────────────────────
 
-    function submitPayment() external payable nonReentrant notPaused {
+    function submitPayment() external nonReentrant notPaused {
         require(msg.sender == winner, "Not the winner");
         require(!paymentSubmitted, "Payment already submitted");
         require(block.timestamp <= settlementDeadline, "Settlement window expired");
 
-        if (settlementToken == address(0)) {
-            require(msg.value == winningBidAmount, "Wrong ETH amount");
-        } else {
-            require(msg.value == 0, "Send ERC-20, not ETH");
-            IERC20(settlementToken).transferFrom(msg.sender, address(this), winningBidAmount);
-        }
+        // Settlement is always DDSC (ERC-20). Caller must approve vault first.
+        IERC20(settlementToken).transferFrom(msg.sender, address(this), winningBidAmount);
 
         paymentSubmitted = true;
 
@@ -465,12 +463,7 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
     function _releasePaymentToCreator() internal {
         uint256 amount = winningBidAmount;
         winningBidAmount = 0;
-        if (settlementToken == address(0)) {
-            (bool ok, ) = payable(buyer).call{ value: amount }("");
-            require(ok, "Payment release failed");
-        } else {
-            IERC20(settlementToken).transfer(buyer, amount);
-        }
+        IERC20(settlementToken).transfer(buyer, amount);
     }
 
     function disputeDelivery() external {
@@ -491,12 +484,7 @@ contract ShadowBidVault is ReentrancyGuard, EIP712 {
         winningBidAmount = 0;
         paymentSubmitted = false;
 
-        if (settlementToken == address(0)) {
-            (bool ok, ) = payable(winner).call{ value: amount }("");
-            require(ok, "Reclaim failed");
-        } else {
-            IERC20(settlementToken).transfer(winner, amount);
-        }
+        IERC20(settlementToken).transfer(winner, amount);
 
         emit OracleTimedOut(block.timestamp);
     }

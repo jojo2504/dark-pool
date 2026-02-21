@@ -85,6 +85,13 @@ async function deployVaultFixture() {
   const base = await deployFactoryFixture();
   const { factory, admin, buyer, supplier1, supplier2, oracle } = base;
 
+  // Deploy MockERC20 (DDSC stand-in) — mint enough to suppliers for payment tests
+  const MockToken = await ethers.getContractFactory("MockERC20");
+  const mockToken = (await MockToken.deploy()) as any;
+  await mockToken.waitForDeployment();
+  await mockToken.mint(supplier1.address, ethers.parseEther("10000"));
+  await mockToken.mint(supplier2.address, ethers.parseEther("10000"));
+
   // Grant buyer role + KYB
   await factory.connect(admin).grantBuyerRole(buyer.address);
   await factory.connect(admin).verifyInstitution(buyer.address, true, "UAE", "0x");
@@ -111,7 +118,7 @@ async function deployVaultFixture() {
     30 * 24 * 3600, // oracleTimeout
     false, // requiresAccreditation
     ["UAE"],
-    ethers.ZeroAddress, // native ETH settlement
+    await mockToken.getAddress(), // DDSC settlement token
     declaredAssetValue,
     0, // no review window
     { value: bond },
@@ -131,7 +138,7 @@ async function deployVaultFixture() {
   const vaultAddress = event!.args.vault as string;
   const vault = (await ethers.getContractAt("ShadowBidVault", vaultAddress)) as ShadowBidVault;
 
-  return { ...base, vault, vaultAddress, closeTime, revealWindow, depositRequired, bond };
+  return { ...base, vault, vaultAddress, closeTime, revealWindow, depositRequired, bond, mockToken };
 }
 
 // ─── Tests ─────────────────────────────────────────────────────────────────────
@@ -202,27 +209,25 @@ describe("ShadowBidFactory", function () {
       const closeTime = (await time.latest()) + 7200;
       const bond = ethers.parseEther("0.01");
 
-      await factory
-        .connect(buyer)
-        .createVault(
-          "Vault A",
-          "desc",
-          closeTime,
-          3600,
-          ethers.parseEther("0.01"),
-          [supplier1.address],
-          "0xPUBKEY",
-          oracle.address,
-          ethers.ZeroHash,
-          48 * 3600,
-          30 * 24 * 3600,
-          false,
-          [],
-          ethers.ZeroAddress,
-          ethers.parseEther("2"),
-          0,
-          { value: bond },
-        );
+      await factory.connect(buyer).createVault(
+        "Vault A",
+        "desc",
+        closeTime,
+        3600,
+        ethers.parseEther("0.01"),
+        [supplier1.address],
+        "0xPUBKEY",
+        oracle.address,
+        ethers.ZeroHash,
+        48 * 3600,
+        30 * 24 * 3600,
+        false,
+        [],
+        oracle.address, // non-zero settlement token (DDSC stand-in for test)
+        ethers.parseEther("2"),
+        0,
+        { value: bond },
+      );
 
       const vaults = await factory.getAllVaults();
       expect(vaults.length).to.equal(1);
@@ -236,27 +241,25 @@ describe("ShadowBidFactory", function () {
 
       const closeTime = (await time.latest()) + 7200;
       await expect(
-        factory
-          .connect(buyer)
-          .createVault(
-            "My Auction",
-            "desc",
-            closeTime,
-            3600,
-            ethers.parseEther("0.01"),
-            [supplier1.address],
-            "0xPUBKEY",
-            oracle.address,
-            ethers.ZeroHash,
-            48 * 3600,
-            30 * 24 * 3600,
-            false,
-            [],
-            ethers.ZeroAddress,
-            ethers.parseEther("2"),
-            0,
-            { value: ethers.parseEther("0.01") },
-          ),
+        factory.connect(buyer).createVault(
+          "My Auction",
+          "desc",
+          closeTime,
+          3600,
+          ethers.parseEther("0.01"),
+          [supplier1.address],
+          "0xPUBKEY",
+          oracle.address,
+          ethers.ZeroHash,
+          48 * 3600,
+          30 * 24 * 3600,
+          false,
+          [],
+          oracle.address, // non-zero settlement token
+          ethers.parseEther("2"),
+          0,
+          { value: ethers.parseEther("0.01") },
+        ),
       ).to.emit(factory, "VaultCreated");
     });
 
@@ -370,7 +373,7 @@ describe("ShadowBidFactory", function () {
           0,
           false,
           [],
-          ethers.ZeroAddress,
+          oracle.address, // non-zero settlement token
           ethers.parseEther("2"), // requires 0.01 ETH bond
           0,
           { value: ethers.parseEther("0.001") }, // too low
@@ -527,7 +530,7 @@ describe("ShadowBidVault — Bidding Lifecycle", function () {
         30 * 24 * 3600,
         false,
         ["UAE"],
-        ethers.ZeroAddress,
+        oracle.address, // non-zero settlement token
         declaredAssetValue,
         0,
         { value: bond },
@@ -754,7 +757,7 @@ describe("ShadowBidVault — Bidding Lifecycle", function () {
   describe("submitPayment + confirmDelivery", function () {
     it("winner can submit payment and oracle confirms delivery", async function () {
       const fix = await deployVaultFixture();
-      const { vault, vaultAddress, supplier1, buyer, oracle, depositRequired, closeTime, chainId } = fix;
+      const { vault, vaultAddress, supplier1, buyer, oracle, depositRequired, closeTime, chainId, mockToken } = fix;
 
       const price = ethers.parseEther("1");
       const salt = ethers.encodeBytes32String("s").slice(0, 66) as `0x${string}`;
@@ -773,8 +776,12 @@ describe("ShadowBidVault — Bidding Lifecycle", function () {
       await time.increaseTo(Number(revealDeadline) + 1);
       await vault.connect(buyer).settle();
 
-      // Submit payment
-      await expect(vault.connect(supplier1).submitPayment({ value: price }))
+      // Approve DDSC settlement token before submitting payment
+      const vaultAddr = await vault.getAddress();
+      await mockToken.connect(supplier1).approve(vaultAddr, price);
+
+      // Submit payment (ERC-20 — no msg.value)
+      await expect(vault.connect(supplier1).submitPayment())
         .to.emit(vault, "PaymentSubmitted")
         .withArgs(supplier1.address, price);
 
@@ -819,7 +826,7 @@ describe("ShadowBidVault — Bidding Lifecycle", function () {
       await time.increaseTo(Number(revealDeadline) + 1);
       await vault.connect(buyer).settle();
 
-      await expect(vault.connect(supplier2).submitPayment({ value: price1 })).to.be.revertedWith("Not the winner");
+      await expect(vault.connect(supplier2).submitPayment()).to.be.revertedWith("Not the winner");
     });
   });
 

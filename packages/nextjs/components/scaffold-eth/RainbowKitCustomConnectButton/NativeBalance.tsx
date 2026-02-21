@@ -6,7 +6,7 @@ import { formatUnits } from "viem";
 import { Address } from "viem";
 import { useBalance } from "wagmi";
 import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
-import { ADI_TOKEN_ADDRESS, USDC_TOKEN_ADDRESS, WETH_TOKEN_ADDRESS } from "~~/lib/darkpool-config";
+import { ADI_TOKEN_ADDRESS, DDSC_TOKEN_ADDRESS } from "~~/lib/darkpool-config";
 
 type NativeBalanceProps = {
   address: Address;
@@ -16,7 +16,7 @@ type NativeBalanceProps = {
 /**
  * Multi-token balance cycler.
  *
- * Click to cycle through: native (ADI) -> WETH -> ADI ERC-20 -> USDC.
+ * Click to cycle through: native (ADI) -> ADI ERC-20 -> DDSC.
  * ERC-20 slots only appear when their NEXT_PUBLIC_*_ADDRESS env var is set.
  * All wagmi hooks are called unconditionally (rules of hooks), but each ERC-20
  * query is disabled when no address is configured.
@@ -31,15 +31,7 @@ export const NativeBalance = ({ address, style }: NativeBalanceProps) => {
     chain: targetNetwork,
   });
 
-  // 2. WETH / bridged ETH
-  const { data: wethBal, isLoading: wethLoading } = useBalance({
-    address,
-    token: WETH_TOKEN_ADDRESS as `0x${string}` | undefined,
-    chainId: targetNetwork.id,
-    query: { enabled: Boolean(address) && Boolean(WETH_TOKEN_ADDRESS) },
-  });
-
-  // 3. ADI ERC-20
+  // 2. ADI ERC-20
   const { data: adiBal, isLoading: adiLoading } = useBalance({
     address,
     token: ADI_TOKEN_ADDRESS as `0x${string}` | undefined,
@@ -47,12 +39,12 @@ export const NativeBalance = ({ address, style }: NativeBalanceProps) => {
     query: { enabled: Boolean(address) && Boolean(ADI_TOKEN_ADDRESS) },
   });
 
-  // 4. USDC
-  const { data: usdcBal, isLoading: usdcLoading } = useBalance({
+  // 3. DDSC (AED stablecoin — settlement currency)
+  const { data: ddscBal, isLoading: ddscLoading } = useBalance({
     address,
-    token: USDC_TOKEN_ADDRESS as `0x${string}` | undefined,
+    token: DDSC_TOKEN_ADDRESS as `0x${string}` | undefined,
     chainId: targetNetwork.id,
-    query: { enabled: Boolean(address) && Boolean(USDC_TOKEN_ADDRESS) },
+    query: { enabled: Boolean(address) && Boolean(DDSC_TOKEN_ADDRESS) },
   });
 
   // Build ordered list — only include ERC-20 slots when configured
@@ -67,13 +59,6 @@ export const NativeBalance = ({ address, style }: NativeBalanceProps) => {
           show: true,
         },
         {
-          key: "weth",
-          symbol: wethBal?.symbol ?? "WETH",
-          value: wethBal ? Number(formatUnits(wethBal.value, wethBal.decimals)) : null,
-          isLoading: wethLoading,
-          show: Boolean(WETH_TOKEN_ADDRESS),
-        },
-        {
           key: "adi",
           symbol: adiBal?.symbol ?? "ADI",
           value: adiBal ? Number(formatUnits(adiBal.value, adiBal.decimals)) : null,
@@ -81,25 +66,15 @@ export const NativeBalance = ({ address, style }: NativeBalanceProps) => {
           show: Boolean(ADI_TOKEN_ADDRESS),
         },
         {
-          key: "usdc",
-          symbol: usdcBal?.symbol ?? "USDC",
-          value: usdcBal ? Number(formatUnits(usdcBal.value, usdcBal.decimals)) : null,
-          isLoading: usdcLoading,
-          show: Boolean(USDC_TOKEN_ADDRESS),
+          key: "ddsc",
+          symbol: ddscBal?.symbol ?? "DDSC",
+          value: ddscBal ? Number(formatUnits(ddscBal.value, ddscBal.decimals)) : null,
+          isLoading: ddscLoading,
+          show: Boolean(DDSC_TOKEN_ADDRESS),
         },
       ].filter(s => s.show),
 
-    [
-      targetNetwork.nativeCurrency.symbol,
-      nativeBal,
-      nativeLoading,
-      wethBal,
-      wethLoading,
-      adiBal,
-      adiLoading,
-      usdcBal,
-      usdcLoading,
-    ],
+    [targetNetwork.nativeCurrency.symbol, nativeBal, nativeLoading, adiBal, adiLoading, ddscBal, ddscLoading],
   );
 
   const current = slots[idx % slots.length];

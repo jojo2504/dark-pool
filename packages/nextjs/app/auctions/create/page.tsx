@@ -11,7 +11,7 @@ import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteCont
 import { z } from "zod";
 import { RFPGeneratorWidget } from "~~/components/ai/RFPGeneratorWidget";
 import { FACTORY_ABI } from "~~/lib/contracts";
-import { DDSC_ADDRESS, FACTORY_ADDRESS, SETTLEMENT_TOKENS } from "~~/lib/darkpool-config";
+import { DDSC_ADDRESS, FACTORY_ADDRESS } from "~~/lib/darkpool-config";
 
 const schema = z.object({
   title: z.string().min(5).max(80),
@@ -40,8 +40,6 @@ const schema = z.object({
   requiresAccreditation: z.boolean().default(false),
   allowedJurisdictionsRaw: z.string().optional(),
   reviewWindowHours: z.coerce.number().min(0).default(0),
-  // Settlement currency
-  settlementTokenKey: z.enum(["ETH", "DDSC"]).default("ETH"),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -102,12 +100,10 @@ export default function CreateAuctionPage() {
       oracleTimeoutDays: 30,
       reviewWindowHours: 0,
       requiresAccreditation: false,
-      settlementTokenKey: "ETH",
     },
   });
 
   const watchedDeclaredValue = watch("declaredAssetValueEth") ?? "";
-  const watchedSettlementKey = watch("settlementTokenKey");
   const bondAmount = computeBond(watchedDeclaredValue);
 
   const onSubmit = (data: FormData) => {
@@ -157,9 +153,7 @@ export default function CreateAuctionPage() {
 
       const creatorBond = computeBond(pendingData.declaredAssetValueEth ?? "");
 
-      const settlementTokenAddress = (
-        pendingData.settlementTokenKey === "DDSC" ? DDSC_ADDRESS : zeroAddress
-      ) as `0x${string}`;
+      const settlementTokenAddress = DDSC_ADDRESS;
 
       const hash = await writeContractAsync({
         address: FACTORY_ADDRESS,
@@ -268,8 +262,8 @@ export default function CreateAuctionPage() {
                   <span>{pendingData.requiresAccreditation ? "REQUIRED" : "NOT REQUIRED"}</span>
                 </div>
                 <div className="flex justify-between p-3">
-                  <span className="opacity-100">SETTLEMENT</span>
-                  <span>{pendingData.settlementTokenKey === "DDSC" ? "DDSC (AED)" : "ETH (NATIVE)"}</span>
+                  <span className="opacity-40">SETTLEMENT</span>
+                  <span>DDSC (AED STABLECOIN)</span>
                 </div>
               </div>
 
@@ -569,24 +563,14 @@ export default function CreateAuctionPage() {
                   </div>
                 </div>
 
-                {/* Settlement Currency Selector */}
+                {/* Settlement Currency — always DDSC */}
                 <div className="mt-6">
                   <label className={labelClass}>SETTLEMENT CURRENCY</label>
-                  <div className="flex">
-                    {Object.entries(SETTLEMENT_TOKENS).map(([key, { label }]) => (
-                      <label
-                        key={key}
-                        className={`flex-1 flex items-center gap-3 px-4 py-3 border border-white cursor-pointer font-mono text-xs transition-all duration-100 ${
-                          watchedSettlementKey === key ? "bg-white text-black" : "hover:opacity-80"
-                        } ${key !== "ETH" ? "border-l-0" : ""}`}
-                      >
-                        <input type="radio" value={key} {...register("settlementTokenKey")} className="sr-only" />
-                        <span className="uppercase tracking-[0.1em]">{label}</span>
-                      </label>
-                    ))}
+                  <div className="flex items-center gap-3 px-4 py-3 border border-white bg-white text-black font-mono text-xs">
+                    <span className="uppercase tracking-[0.1em] font-bold">DDSC — AED STABLECOIN</span>
                   </div>
-                  <p className="font-mono text-[9px] text-white mt-1">
-                    DDSC = UAE CENTRAL BANK-LICENSED AED STABLECOIN ON ADI CHAIN · ELIMINATES ETH PRICE RISK
+                  <p className="font-mono text-[9px] text-white/50 mt-1">
+                    UAE CENTRAL BANK-LICENSED AED STABLECOIN ON ADI CHAIN · ELIMINATES PRICE VOLATILITY RISK
                   </p>
                 </div>
 

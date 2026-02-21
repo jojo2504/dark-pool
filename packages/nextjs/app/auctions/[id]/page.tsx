@@ -12,7 +12,7 @@ import { LowBidDetectWidget } from "~~/components/ai/LowBidDetectWidget";
 import { BidPanel } from "~~/components/darkpool/BidPanel";
 import { Countdown } from "~~/components/darkpool/Countdown";
 import { VAULT_ABI } from "~~/lib/contracts";
-import { ZERO_ADDRESS } from "~~/lib/darkpool-config";
+import { DDSC_ADDRESS, ZERO_ADDRESS } from "~~/lib/darkpool-config";
 import { PHASE_LABEL, VaultPhase, phaseToStatus } from "~~/lib/types";
 import { formatAddress, formatTimestamp, formatWei } from "~~/lib/utils";
 
@@ -344,15 +344,49 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
               {isWinner && canSubmitPayment && (
                 <div className="mb-4">
                   <p className="font-mono text-[10px] uppercase opacity-100 mb-2">
-                    YOU WON — SUBMIT PAYMENT OF {formatWei(winningBidAmount)}
+                    YOU WON — SUBMIT DDSC PAYMENT OF {formatWei(winningBidAmount)}
                   </p>
-                  <button
-                    onClick={() => sendTx("submitPayment", [], winningBidAmount, "Payment submitted")}
-                    disabled={isTxPending}
-                    className="border border-green-400 px-6 py-3 font-mono text-[10px] uppercase text-green-400 bg-green-400/10 hover:bg-green-400/20 transition-all disabled:opacity-20"
-                  >
-                    {isTxPending ? "PROCESSING..." : "SUBMIT PAYMENT"}
-                  </button>
+                  <p className="font-mono text-[9px] uppercase opacity-40 mb-3">STEP 1: APPROVE · STEP 2: SUBMIT</p>
+                  <div className="flex gap-0">
+                    <button
+                      onClick={async () => {
+                        try {
+                          const h = await (writeContractAsync as any)({
+                            address: DDSC_ADDRESS,
+                            abi: [
+                              {
+                                type: "function",
+                                name: "approve",
+                                stateMutability: "nonpayable",
+                                inputs: [
+                                  { name: "spender", type: "address" },
+                                  { name: "amount", type: "uint256" },
+                                ],
+                                outputs: [{ name: "", type: "bool" }],
+                              },
+                            ],
+                            functionName: "approve",
+                            args: [vaultAddress, winningBidAmount],
+                          });
+                          setTxHash(h);
+                          toast.success("DDSC approved");
+                        } catch (e: unknown) {
+                          toast.error(e instanceof Error ? e.message.slice(0, 80) : "Approval failed");
+                        }
+                      }}
+                      disabled={isTxPending}
+                      className="flex-1 border border-green-400/60 px-4 py-3 font-mono text-[10px] uppercase text-green-400/70 hover:bg-green-400/10 transition-all disabled:opacity-20"
+                    >
+                      {isTxPending ? "..." : "1. APPROVE DDSC"}
+                    </button>
+                    <button
+                      onClick={() => sendTx("submitPayment", [], undefined, "Payment submitted")}
+                      disabled={isTxPending}
+                      className="flex-1 border border-green-400 border-l-0 px-4 py-3 font-mono text-[10px] uppercase text-green-400 bg-green-400/10 hover:bg-green-400/20 transition-all disabled:opacity-20"
+                    >
+                      {isTxPending ? "PROCESSING..." : "2. SUBMIT PAYMENT"}
+                    </button>
+                  </div>
                 </div>
               )}
               {isOracle && canConfirmDelivery && (

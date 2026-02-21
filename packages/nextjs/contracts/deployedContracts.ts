@@ -7,7 +7,7 @@ import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 const deployedContracts = {
   99999: {
     ShadowBidFactory: {
-      address: "0xf9283A2da827A939b931283F696f79b69f289Ee2",
+      address: "0xbF8F2953af175aDb72e51B95e9C8157fA2398622",
       abi: [
         {
           inputs: [
@@ -730,10 +730,10 @@ const deployedContracts = {
         revokeRole: "@openzeppelin/contracts/access/AccessControl.sol",
         supportsInterface: "@openzeppelin/contracts/access/AccessControl.sol",
       },
-      deployedOnBlock: 40380,
+      deployedOnBlock: 40421,
     },
     ShadowBidVault: {
-      address: "0xEbA58c9121179f5018a0726B181d38fc65273F94",
+      address: "0xE478912C9Faa893F63F0a66Fc299A3755591B6F2",
       abi: [
         {
           inputs: [],
@@ -2015,7 +2015,7 @@ const deployedContracts = {
           inputs: [],
           name: "submitPayment",
           outputs: [],
-          stateMutability: "payable",
+          stateMutability: "nonpayable",
           type: "function",
         },
         {
@@ -2124,7 +2124,7 @@ const deployedContracts = {
       inheritedFunctions: {
         eip712Domain: "@openzeppelin/contracts/utils/cryptography/EIP712.sol",
       },
-      deployedOnBlock: 40379,
+      deployedOnBlock: 40420,
     },
   },
 } as const;

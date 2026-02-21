@@ -138,7 +138,7 @@ contract ShadowBidFactory is AccessControl {
      * @param _oracleTimeout       Seconds for oracle to confirm delivery (default: 30d)
      * @param _requiresAccreditation  Whether bidders must be accredited investors
      * @param _allowedJurisdictions   Allowed jurisdiction codes (e.g. ["UAE", "KSA"])
-     * @param _settlementToken     ERC-20 token for settlement (address(0) = ETH)
+     * @param _settlementToken     DDSC token address for settlement (must not be address(0))
      * @param _declaredAssetValue  Declared value of the asset in wei (used for bond calc)
      * @param _reviewWindowSeconds Seconds bidders must wait to review docs before bidding
      */
@@ -163,6 +163,7 @@ contract ShadowBidFactory is AccessControl {
         require(_closeTime > block.timestamp + 300, "closeTime must be > now + 5min");
         require(_revealWindow >= 3600, "revealWindow must be >= 1h");
         require(_allowedSuppliers.length >= 1, "At least 1 supplier required");
+        require(_settlementToken != address(0), "Settlement token required");
 
         // Clone the implementation (EIP-1167 minimal proxy, ~55 bytes, ~500 gas)
         address clone = Clones.clone(vaultImpl);
