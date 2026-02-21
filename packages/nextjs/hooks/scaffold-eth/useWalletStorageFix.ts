@@ -38,8 +38,8 @@ export const clearWalletStorage = () => {
  * - Providing a manual reset function
  */
 export const useWalletStorageFix = () => {
-  const { isConnected, connector, isReconnecting, error } = useAccount();
-  const { connectError } = useConnect();
+  const { isConnected, connector, isReconnecting } = useAccount();
+  const { error: connectError } = useConnect();
   const { disconnect } = useDisconnect();
 
   /**
@@ -101,10 +101,10 @@ export const useWalletStorageFix = () => {
    */
   useEffect(() => {
     // If we have a connect error, clear storage
-    if (connectError || error) {
+    if (connectError) {
       handleConnectionError();
     }
-  }, [connectError, error, handleConnectionError]);
+  }, [connectError, handleConnectionError]);
 
   /**
    * Validate connection when connector changes
@@ -132,24 +132,31 @@ export const useWalletStorageFix = () => {
  * Shows a clean "Connect" button without random addresses
  */
 export const useCleanConnect = () => {
-  const { connect, connectError, isConnected } = useConnect();
+  const { connect, connectors, error: connectError } = useConnect();
   const { switchChain } = useSwitchChain();
   const { targetNetwork } = useTargetNetwork();
   const { clearWalletStorage } = useWalletStorageFix();
+  const { isConnected } = useAccount();
 
   const cleanConnect = useCallback(async () => {
     // Clear any stale storage first
     clearWalletStorage();
 
-    // Connect to the target network
+    // Connect using the first available connector
+    const firstConnector = connectors[0];
+    if (!firstConnector) {
+      console.error("No connectors available");
+      return;
+    }
+
     try {
-      await connect({ chainId: targetNetwork.id });
+      await connect({ connector: firstConnector, chainId: targetNetwork.id });
     } catch (err) {
       console.error("Connection failed:", err);
       // Storage already cleared, let user retry
       throw err;
     }
-  }, [connect, targetNetwork.id, clearWalletStorage]);
+  }, [connect, connectors, targetNetwork.id, clearWalletStorage]);
 
   const switchToTargetNetwork = useCallback(() => {
     try {
