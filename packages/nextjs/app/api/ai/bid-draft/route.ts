@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureLedgerFunded, getBroker, runInference } from "~~/services/og/broker";
+import { runInference } from "~~/services/gemini/client";
 
 interface BidDraftRequest {
   auctionTitle: string;
@@ -37,9 +37,6 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const broker = await getBroker();
-      await ensureLedgerFunded(broker);
-
       const systemPrompt = `You are an expert B2B bid writer for sealed-bid auctions.
 You help providers draft compelling, professional bid descriptions based on their strengths and the auction context.
 You NEVER fabricate credentials or capabilities the provider hasn't mentioned.
@@ -61,7 +58,7 @@ Return ONLY this JSON (no markdown):
   "confidenceLevel": "<low|medium|high>"
 }`.trim();
 
-      const rawResponse = await runInference(broker, systemPrompt, userPrompt, 800);
+      const rawResponse = await runInference(systemPrompt, userPrompt, 800);
 
       let draft;
       try {

@@ -4,16 +4,17 @@ import { useEffect, useState } from "react";
 
 interface HealthData {
   status: "ok" | "degraded" | "down";
-  providerCount: number;
+  provider: string;
   latencyMs: number;
   checkedAt: number;
+  model?: string;
   error?: string;
 }
 
 const STATUS_CONFIG = {
-  ok: { dot: "bg-green-400", label: "0G ONLINE", textClass: "text-green-400" },
-  degraded: { dot: "bg-yellow-400", label: "0G DEGRADED", textClass: "text-yellow-400" },
-  down: { dot: "bg-red-400", label: "0G OFFLINE", textClass: "text-red-400" },
+  ok: { dot: "bg-green-400", label: "AI ONLINE", textClass: "text-green-400" },
+  degraded: { dot: "bg-yellow-400", label: "AI DEGRADED", textClass: "text-yellow-400" },
+  down: { dot: "bg-red-400", label: "AI OFFLINE", textClass: "text-red-400" },
 };
 
 export function OGStatusWidget() {
@@ -27,7 +28,7 @@ export function OGStatusWidget() {
       const data = await res.json();
       setHealth(data);
     } catch {
-      setHealth({ status: "down", providerCount: 0, latencyMs: 0, checkedAt: Date.now() });
+      setHealth({ status: "down", provider: "gemini", latencyMs: 0, checkedAt: Date.now() });
     } finally {
       setChecking(false);
     }
@@ -47,9 +48,7 @@ export function OGStatusWidget() {
       className="flex items-center gap-1.5 cursor-pointer group"
       onClick={check}
       title={
-        health
-          ? `${health.providerCount >= 0 ? health.providerCount + " providers" : "RPC reachable"} — ${health.latencyMs}ms${health.error ? ` — ${health.error}` : ""}`
-          : "Checking..."
+        health ? `${health.provider} — ${health.latencyMs}ms${health.error ? ` — ${health.error}` : ""}` : "Checking..."
       }
     >
       {checking || !health ? (
@@ -58,11 +57,11 @@ export function OGStatusWidget() {
         <span className={`w-2 h-2 rounded-full ${cfg!.dot} animate-pulse`} />
       )}
       <span className={`font-mono text-[9px] tracking-[0.1em] ${cfg ? cfg.textClass : "opacity-100"}`}>
-        {checking ? "..." : cfg ? cfg.label : "0G ..."}
+        {checking ? "..." : cfg ? cfg.label : "AI ..."}
       </span>
       {health?.status === "ok" && (
         <span className="font-mono text-[8px] opacity-0 group-hover:opacity-30 transition-opacity">
-          {health.latencyMs}ms{health.providerCount >= 0 ? ` · ${health.providerCount}p` : ""}
+          {health.latencyMs}ms · {health.model || "gemini-2.0-flash"}
         </span>
       )}
     </div>

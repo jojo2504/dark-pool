@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureLedgerFunded, getBroker, runInference } from "~~/services/og/broker";
+import { runInference } from "~~/services/gemini/client";
 
 interface LowBidDetectRequest {
   revealedBids: Array<{ price: number; conditions: string }>;
@@ -48,9 +48,6 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const broker = await getBroker();
-      await ensureLedgerFunded(broker);
-
       const systemPrompt = `You are a procurement risk analyst specializing in detecting abnormally low bids in sealed auctions.
 You flag bids that may indicate predatory pricing, scope misunderstanding, or non-viable offers.
 All bids are publicly revealed on-chain. Your analysis must be objective and fact-based.
@@ -84,7 +81,7 @@ Return ONLY this JSON (no markdown):
   "recommendation": "<2-3 sentences for the buyer>"
 }`.trim();
 
-      const rawResponse = await runInference(broker, systemPrompt, userPrompt, 700);
+      const rawResponse = await runInference(systemPrompt, userPrompt, 700);
 
       let detection;
       try {

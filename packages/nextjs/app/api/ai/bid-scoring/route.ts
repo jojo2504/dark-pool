@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureLedgerFunded, getBroker, runInference } from "~~/services/og/broker";
+import { runInference } from "~~/services/gemini/client";
 
 interface RevealedBid {
   price: number;
@@ -54,9 +54,6 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const broker = await getBroker();
-      await ensureLedgerFunded(broker);
-
       const systemPrompt = `You are a procurement evaluation expert for sealed-bid RWA auctions.
 You score revealed bids across multiple criteria to help buyers make informed decisions.
 All bids have been publicly revealed on-chain. Your analysis must be fair and objective.
@@ -93,7 +90,7 @@ Return ONLY this JSON (no markdown):
   "recommendation": "<2-3 sentences of buyer recommendation>"
 }`.trim();
 
-      const rawResponse = await runInference(broker, systemPrompt, userPrompt, 900);
+      const rawResponse = await runInference(systemPrompt, userPrompt, 900);
 
       let scoring;
       try {

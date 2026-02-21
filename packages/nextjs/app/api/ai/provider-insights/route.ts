@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureLedgerFunded, getBroker, runInference } from "~~/services/og/broker";
+import { runInference } from "~~/services/gemini/client";
 
 interface BidHistoryEntry {
   price: number;
@@ -75,9 +75,6 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const broker = await getBroker();
-      await ensureLedgerFunded(broker);
-
       const systemPrompt = `You are a performance analyst for sealed-bid auction participants.
 You analyze a provider's past bidding history to extract actionable insights.
 You NEVER reveal other participants' data — only the requesting provider's own history.
@@ -111,7 +108,7 @@ Return ONLY this JSON (no markdown):
   "trendDirection": "<improving|declining|stable>"
 }`.trim();
 
-      const rawResponse = await runInference(broker, systemPrompt, userPrompt, 700);
+      const rawResponse = await runInference(systemPrompt, userPrompt, 700);
 
       let insights;
       try {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureLedgerFunded, getBroker, runInference } from "~~/services/og/broker";
+import { runInference } from "~~/services/gemini/client";
 import { computeCompetitivenessFallback } from "~~/services/og/fallback";
 
 interface CompetitivenessRequest {
@@ -44,9 +44,6 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const broker = await getBroker();
-      await ensureLedgerFunded(broker);
-
       const systemPrompt = `Tu es un assistant d'analyse de compétitivité pour un système d'enchères B2B scellées.
 Tu aides exclusivement le fournisseur à évaluer son propre prix par rapport aux données historiques publiques du marché.
 Tu n'as JAMAIS accès aux offres d'autres participants en cours — uniquement des statistiques historiques agrégées.
@@ -61,7 +58,7 @@ Sois précis, chiffré, et actionnable dans tes recommandations.`;
         marketHistoricalData,
       );
 
-      const rawResponse = await runInference(broker, systemPrompt, userPrompt, 700);
+      const rawResponse = await runInference(systemPrompt, userPrompt, 700);
 
       // Parser le JSON retourné par l'IA — extraction robuste
       let analysis;

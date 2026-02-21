@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureLedgerFunded, getBroker, runInference } from "~~/services/og/broker";
+import { runInference } from "~~/services/gemini/client";
 import { computePostRevealFallback } from "~~/services/og/fallback";
 
 interface RevealedBid {
@@ -32,9 +32,6 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const broker = await getBroker();
-      await ensureLedgerFunded(broker);
-
       const systemPrompt = `Tu es un expert en analyse d'appels d'offres, marchés publics décentralisés, et détection de comportements anticoncurrentiels.
 Tu analyses des enchères scellées APRÈS leur révélation publique on-chain.
 Toutes les données que tu reçois sont désormais publiques et vérifiables sur la blockchain.
@@ -43,7 +40,7 @@ Tu réponds TOUJOURS en JSON valide uniquement, sans markdown ni backticks.`;
 
       const userPrompt = buildPostRevealPrompt(auctionId, auctionCategory, revealedBids, body);
 
-      const rawResponse = await runInference(broker, systemPrompt, userPrompt, 900);
+      const rawResponse = await runInference(systemPrompt, userPrompt, 900);
 
       let report;
       try {

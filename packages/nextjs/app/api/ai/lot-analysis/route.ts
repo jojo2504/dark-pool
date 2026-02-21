@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureLedgerFunded, getBroker, runInference } from "~~/services/og/broker";
+import { runInference } from "~~/services/gemini/client";
 
 interface LotAnalysisRequest {
   auctionTitle: string;
@@ -42,9 +42,6 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const broker = await getBroker();
-      await ensureLedgerFunded(broker);
-
       const systemPrompt = `You are an expert procurement analyst for sealed-bid RWA auctions.
 You analyze auction lots to help providers understand requirements and position their bid strategically.
 You respond ONLY in valid JSON, no markdown, no backticks.`;
@@ -66,7 +63,7 @@ Return ONLY this JSON (no markdown):
   "idealProfileDescription": "<description of ideal bidder profile>"
 }`.trim();
 
-      const rawResponse = await runInference(broker, systemPrompt, userPrompt, 700);
+      const rawResponse = await runInference(systemPrompt, userPrompt, 700);
 
       let analysis;
       try {

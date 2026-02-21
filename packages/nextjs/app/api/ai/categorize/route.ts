@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureLedgerFunded, getBroker, runInference } from "~~/services/og/broker";
+import { runInference } from "~~/services/gemini/client";
 
 interface CategorizeRequest {
   title: string;
@@ -56,9 +56,6 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const broker = await getBroker();
-      await ensureLedgerFunded(broker);
-
       const systemPrompt = `You are a categorization expert for institutional RWA (Real World Asset) auctions.
 You classify auctions into industry categories based on their title and description.
 You respond ONLY in valid JSON, no markdown, no backticks.`;
@@ -79,7 +76,7 @@ Return ONLY this JSON (no markdown):
   "confidence": <number 0-1>
 }`.trim();
 
-      const rawResponse = await runInference(broker, systemPrompt, userPrompt, 400);
+      const rawResponse = await runInference(systemPrompt, userPrompt, 400);
 
       let categorization;
       try {

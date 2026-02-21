@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureLedgerFunded, getBroker, runInference } from "~~/services/og/broker";
+import { runInference } from "~~/services/gemini/client";
 
 interface RFPGenerateRequest {
   assetType: string;
@@ -39,9 +39,6 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const broker = await getBroker();
-      await ensureLedgerFunded(broker);
-
       const systemPrompt = `You are an expert RFP (Request for Proposal) writer for institutional RWA sealed-bid auctions.
 You help buyers create clear, professional auction listings that maximize quality bid submissions.
 You respond ONLY in valid JSON, no markdown, no backticks.`;
@@ -64,7 +61,7 @@ Return ONLY this JSON (no markdown):
   "keyTerms": ["<term1>", "<term2>", ...]
 }`.trim();
 
-      const rawResponse = await runInference(broker, systemPrompt, userPrompt, 800);
+      const rawResponse = await runInference(systemPrompt, userPrompt, 800);
 
       let rfp;
       try {
