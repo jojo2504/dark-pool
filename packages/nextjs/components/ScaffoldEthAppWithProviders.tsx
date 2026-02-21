@@ -6,10 +6,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
 import { useTheme } from "next-themes";
 import { Toaster } from "react-hot-toast";
+import { toast } from "react-hot-toast";
 import { WagmiProvider } from "wagmi";
+import { useAccount, useSwitchChain } from "wagmi";
 import { Header } from "~~/components/Header";
 import { FooterSection } from "~~/components/darkpool/FooterSection";
 import { BlockieAvatar } from "~~/components/scaffold-eth";
+import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
+import { useWalletStorageFix } from "~~/hooks/scaffold-eth/useWalletStorageFix";
 import { wagmiConfig } from "~~/services/web3/wagmiConfig";
 
 // Polyfill localStorage for SSR — RainbowKit calls localStorage.getItem()
@@ -24,6 +28,82 @@ if (typeof window === "undefined") {
     key: () => null,
   };
 }
+
+// Suppress WalletConnect/RainbowKit Analytics SDK errors
+// These are non-critical telemetry errors that don't affect functionality
+if (typeof window !== "undefined") {
+  const originalError = console.error;
+  console.error = (...args) => {
+    // Filter out WalletConnect Analytics SDK errors
+    const message = args[0];
+    if (typeof message === "string" && (message.includes("Analytics SDK") || message.includes("Failed to fetch"))) {
+      return; // Suppress
+    }
+    originalError.apply(console, args);
+  };
+}
+
+/**
+ * Component that monitors wallet connection state and fixes sync issues
+ */
+const WalletConnectionMonitor = ({ children }: { children: React.ReactNode }) => {
+  const { targetNetwork } = useTargetNetwork();
+  const { isConnected, chain } = useAccount();
+  const { switchChain } = useSwitchChain();
+  const { validateAndFixConnection } = useWalletStorageFix();
+  const [hasShownToast, setHasShownToast] = useState(false);
+
+  useEffect(() => {
+    // Validate connection after a short delay on mount
+    const timer = setTimeout(() => {
+      validateAndFixConnection();
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [validateAndFixConnection]);
+
+  useEffect(() => {
+    // If connected but on wrong network, offer to switch
+    if (isConnected && chain && chain.id !== targetNetwork.id) {
+      if (!hasShownToast) {
+        toast(
+          (t: string) => (
+            <div className="flex items-center gap-2">
+              <span>Wrong network detected. Switch to {targetNetwork.name}?</span>
+              <button
+                className="btn btn-xs btn-primary"
+                onClick={() => {
+                  try {
+                    switchChain({ chainId: targetNetwork.id });
+                    toast.dismiss(t);
+                  } catch {
+                    toast.error("Failed to switch network");
+                  }
+                }}
+              >
+                Switch
+              </button>
+              <button className="btn btn-xs btn-ghost" onClick={() => toast.dismiss(t)}>
+                Dismiss
+              </button>
+            </div>
+          ),
+          { duration: 10000 },
+        );
+        setHasShownToast(true);
+      }
+    }
+  }, [isConnected, chain, targetNetwork, switchChain, hasShownToast]);
+
+  // Reset toast shown flag when network changes
+  useEffect(() => {
+    if (chain?.id === targetNetwork.id) {
+      setHasShownToast(false);
+    }
+  }, [chain?.id, targetNetwork.id]);
+
+  return children;
+};
 
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
   return (
@@ -77,7 +157,9 @@ export const ScaffoldEthAppWithProviders = ({ children }: { children: React.Reac
           theme={mounted ? (isDarkMode ? darkTheme() : lightTheme()) : lightTheme()}
         >
           <ProgressBar height="3px" color="#2299dd" />
-          <ScaffoldEthApp>{children}</ScaffoldEthApp>
+          <WalletConnectionMonitor>
+            <ScaffoldEthApp>{children}</ScaffoldEthApp>
+          </WalletConnectionMonitor>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
