@@ -25,10 +25,20 @@ export function OGStatusWidget() {
     setChecking(true);
     try {
       const res = await fetch("/api/ai/health");
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
       const data = await res.json();
       setHealth(data);
-    } catch {
-      setHealth({ status: "down", provider: "gemini", latencyMs: 0, checkedAt: Date.now() });
+    } catch (error: any) {
+      console.error("[OGStatusWidget] Health check failed:", error);
+      setHealth({
+        status: "down",
+        provider: "gemini",
+        latencyMs: 0,
+        checkedAt: Date.now(),
+        error: error.message,
+      });
     } finally {
       setChecking(false);
     }

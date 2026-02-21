@@ -48,7 +48,9 @@ export async function POST(req: NextRequest) {
       data: { onChainVerified: true, onChainTxHash: txHash },
     });
   } catch (e) {
-    console.warn("[demo-approve] On-chain verify skipped:", e instanceof Error ? e.message : e);
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[demo-approve] On-chain verify FAILED:", msg);
+    return NextResponse.json({ error: "On-chain verification failed", details: msg }, { status: 502 });
   }
 
   await prisma.kybAuditLog.create({

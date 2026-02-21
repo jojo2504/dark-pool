@@ -7,7 +7,7 @@ import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 const deployedContracts = {
   99999: {
     ShadowBidFactory: {
-      address: "0xbF8F2953af175aDb72e51B95e9C8157fA2398622",
+      address: "0xEeeF70011E37EAe0Ec00B70a85Fc7218DF685d3b",
       abi: [
         {
           inputs: [
@@ -730,10 +730,10 @@ const deployedContracts = {
         revokeRole: "@openzeppelin/contracts/access/AccessControl.sol",
         supportsInterface: "@openzeppelin/contracts/access/AccessControl.sol",
       },
-      deployedOnBlock: 40421,
+      deployedOnBlock: 42060,
     },
     ShadowBidVault: {
-      address: "0xE478912C9Faa893F63F0a66Fc299A3755591B6F2",
+      address: "0x0271358Aa688Fe130775DcD6E374439B6DB4CF87",
       abi: [
         {
           inputs: [],
@@ -862,6 +862,31 @@ const deployedContracts = {
             },
           ],
           name: "BidRevealed",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: "address",
+              name: "supplier",
+              type: "address",
+            },
+            {
+              indexed: false,
+              internalType: "bytes32",
+              name: "newCommitHash",
+              type: "bytes32",
+            },
+            {
+              indexed: false,
+              internalType: "string",
+              name: "newStorageRoot",
+              type: "string",
+            },
+          ],
+          name: "BidUpdated",
           type: "event",
         },
         {
@@ -2067,6 +2092,24 @@ const deployedContracts = {
         {
           inputs: [
             {
+              internalType: "bytes32",
+              name: "_newCommitHash",
+              type: "bytes32",
+            },
+            {
+              internalType: "string",
+              name: "_newStorageRoot",
+              type: "string",
+            },
+          ],
+          name: "updateBid",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
               internalType: "address",
               name: "newOracle",
               type: "address",
@@ -2124,7 +2167,7 @@ const deployedContracts = {
       inheritedFunctions: {
         eip712Domain: "@openzeppelin/contracts/utils/cryptography/EIP712.sol",
       },
-      deployedOnBlock: 40420,
+      deployedOnBlock: 42059,
     },
   },
 } as const;
