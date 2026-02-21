@@ -39,26 +39,27 @@ function buildFallbackDetection(body: LowBidDetectRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as LowBidDetectRequest;
-  const { revealedBids, marketContext } = body;
-
-  if (!revealedBids || revealedBids.length < 2) {
-    return NextResponse.json({ error: "Minimum 2 revealed bids required for detection" }, { status: 400 });
-  }
-
   try {
-    const broker = await getBroker();
-    await ensureLedgerFunded(broker);
+    const body = (await req.json()) as LowBidDetectRequest;
+    const { revealedBids, marketContext } = body;
 
-    const systemPrompt = `You are a procurement risk analyst specializing in detecting abnormally low bids in sealed auctions.
+    if (!revealedBids || revealedBids.length < 2) {
+      return NextResponse.json({ error: "Minimum 2 revealed bids required for detection" }, { status: 400 });
+    }
+
+    try {
+      const broker = await getBroker();
+      await ensureLedgerFunded(broker);
+
+      const systemPrompt = `You are a procurement risk analyst specializing in detecting abnormally low bids in sealed auctions.
 You flag bids that may indicate predatory pricing, scope misunderstanding, or non-viable offers.
 All bids are publicly revealed on-chain. Your analysis must be objective and fact-based.
 You respond ONLY in valid JSON, no markdown, no backticks.`;
 
-    const prices = revealedBids.map(b => b.price);
-    const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+      const prices = revealedBids.map(b => b.price);
+      const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
 
-    const userPrompt = `
+      const userPrompt = `
 Detect abnormally low bids in this auction:
 
 CONTEXT: "${marketContext.title}" — "${marketContext.description}"
@@ -83,27 +84,48 @@ Return ONLY this JSON (no markdown):
   "recommendation": "<2-3 sentences for the buyer>"
 }`.trim();
 
-    const rawResponse = await runInference(broker, systemPrompt, userPrompt, 700);
+      const rawResponse = await runInference(broker, systemPrompt, userPrompt, 700);
 
-    let detection;
-    try {
-      const cleaned = rawResponse
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-      detection = JSON.parse(cleaned);
-    } catch {
-      return NextResponse.json({ error: "AI response not parseable", raw: rawResponse }, { status: 502 });
+      let detection;
+      try {
+        const cleaned = rawResponse
+          .replace(/```json\n?/gi, "")
+          .replace(/```\n?/g, "")
+          .replace(/^\s*[\r\n]/gm, "")
+          .trim();
+
+        const firstBrace = cleaned.indexOf("{");
+        const lastBrace = cleaned.lastIndexOf("}");
+        if (firstBrace === -1 || lastBrace === -1) throw new Error("No JSON object found");
+        detection = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+      } catch (parseError: any) {
+        console.error("[Parse Error] low-bid-detect:", rawResponse);
+        const fallbackDetection = buildFallbackDetection(body);
+        return NextResponse.json({
+          detection: fallbackDetection,
+          source: "parse-error-fallback",
+          parseError: parseError.message,
+        });
+      }
+
+      return NextResponse.json({ detection, source: "0g-compute" });
+    } catch (ogError: any) {
+      console.warn("[0G Unavailable] Low bid detection fallback:", ogError.message);
+      const fallbackDetection = buildFallbackDetection(body);
+      return NextResponse.json({
+        detection: fallbackDetection,
+        source: "statistical-fallback",
+        fallbackReason: ogError.message,
+      });
     }
-
-    return NextResponse.json({ detection, source: "0g-compute" });
-  } catch (ogError: any) {
-    console.warn("[0G Unavailable] Low bid detection fallback:", ogError.message);
-    const fallbackDetection = buildFallbackDetection(body);
-    return NextResponse.json({
-      detection: fallbackDetection,
-      source: "statistical-fallback",
-      fallbackReason: ogError.message,
-    });
+  } catch (error: any) {
+    console.error("[API Error] low-bid-detect:", error);
+    return NextResponse.json(
+      {
+        error: error?.message || "Internal error",
+        details: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+      },
+      { status: 500 },
+    );
   }
 }

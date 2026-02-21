@@ -25,26 +25,27 @@ function buildFallbackDraft(body: BidDraftRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as BidDraftRequest;
-  const { auctionTitle, auctionDescription, providerPrice, providerStrengths } = body;
-
-  if (!auctionTitle || !providerPrice || !providerStrengths) {
-    return NextResponse.json(
-      { error: "auctionTitle, providerPrice, and providerStrengths are required" },
-      { status: 400 },
-    );
-  }
-
   try {
-    const broker = await getBroker();
-    await ensureLedgerFunded(broker);
+    const body = (await req.json()) as BidDraftRequest;
+    const { auctionTitle, auctionDescription, providerPrice, providerStrengths } = body;
 
-    const systemPrompt = `You are an expert B2B bid writer for sealed-bid auctions.
+    if (!auctionTitle || !providerPrice || !providerStrengths) {
+      return NextResponse.json(
+        { error: "auctionTitle, providerPrice, and providerStrengths are required" },
+        { status: 400 },
+      );
+    }
+
+    try {
+      const broker = await getBroker();
+      await ensureLedgerFunded(broker);
+
+      const systemPrompt = `You are an expert B2B bid writer for sealed-bid auctions.
 You help providers draft compelling, professional bid descriptions based on their strengths and the auction context.
 You NEVER fabricate credentials or capabilities the provider hasn't mentioned.
 You respond ONLY in valid JSON, no markdown, no backticks.`;
 
-    const userPrompt = `
+      const userPrompt = `
 Draft a professional bid description for this sealed-bid auction:
 
 AUCTION: "${auctionTitle}"
@@ -60,27 +61,48 @@ Return ONLY this JSON (no markdown):
   "confidenceLevel": "<low|medium|high>"
 }`.trim();
 
-    const rawResponse = await runInference(broker, systemPrompt, userPrompt, 800);
+      const rawResponse = await runInference(broker, systemPrompt, userPrompt, 800);
 
-    let draft;
-    try {
-      const cleaned = rawResponse
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-      draft = JSON.parse(cleaned);
-    } catch {
-      return NextResponse.json({ error: "AI response not parseable", raw: rawResponse }, { status: 502 });
+      let draft;
+      try {
+        const cleaned = rawResponse
+          .replace(/```json\n?/gi, "")
+          .replace(/```\n?/g, "")
+          .replace(/^\s*[\r\n]/gm, "")
+          .trim();
+
+        const firstBrace = cleaned.indexOf("{");
+        const lastBrace = cleaned.lastIndexOf("}");
+        if (firstBrace === -1 || lastBrace === -1) throw new Error("No JSON object found");
+        draft = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+      } catch (parseError: any) {
+        console.error("[Parse Error] bid-draft:", rawResponse);
+        const fallbackDraft = buildFallbackDraft(body);
+        return NextResponse.json({
+          draft: fallbackDraft,
+          source: "parse-error-fallback",
+          parseError: parseError.message,
+        });
+      }
+
+      return NextResponse.json({ draft, source: "0g-compute" });
+    } catch (ogError: any) {
+      console.warn("[0G Unavailable] Bid draft fallback:", ogError.message);
+      const fallbackDraft = buildFallbackDraft(body);
+      return NextResponse.json({
+        draft: fallbackDraft,
+        source: "statistical-fallback",
+        fallbackReason: ogError.message,
+      });
     }
-
-    return NextResponse.json({ draft, source: "0g-compute" });
-  } catch (ogError: any) {
-    console.warn("[0G Unavailable] Bid draft fallback:", ogError.message);
-    const fallbackDraft = buildFallbackDraft(body);
-    return NextResponse.json({
-      draft: fallbackDraft,
-      source: "statistical-fallback",
-      fallbackReason: ogError.message,
-    });
+  } catch (error: any) {
+    console.error("[API Error] bid-draft:", error);
+    return NextResponse.json(
+      {
+        error: error?.message || "Internal error",
+        details: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+      },
+      { status: 500 },
+    );
   }
 }

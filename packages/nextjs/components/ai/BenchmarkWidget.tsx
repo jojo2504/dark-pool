@@ -38,12 +38,16 @@ export function BenchmarkWidget({ category, recentAuctions }: BenchmarkWidgetPro
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ category, recentAuctions }),
       });
+      const rawText = await res.text();
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || `HTTP ${res.status}`);
+        let errMsg = `HTTP ${res.status}`;
+        try {
+          errMsg = JSON.parse(rawText).error || errMsg;
+        } catch {}
+        throw new Error(errMsg);
       }
-      const { benchmark } = await res.json();
-      setResult(benchmark);
+      const data = JSON.parse(rawText);
+      setResult(data.benchmark);
     } catch (e: any) {
       setError(e.message || "Benchmark generation failed");
     } finally {

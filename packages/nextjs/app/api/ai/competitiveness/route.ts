@@ -22,71 +22,96 @@ interface CompetitivenessRequest {
 }
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as CompetitivenessRequest;
-
-  // GARDE DE SÉCURITÉ : refus explicite si des données concurrentes sont présentes
-  if ("competitorPrices" in body || "otherBids" in body || "allSubmissions" in body) {
-    return NextResponse.json(
-      {
-        error: "ISOLATION_VIOLATION: Ce endpoint ne peut pas recevoir de données d'autres soumissionnaires.",
-        context: "pre-submission",
-      },
-      { status: 400 },
-    );
-  }
-
-  const { providerPrice, providerConditions, auctionCategory, marketHistoricalData } = body;
-
-  if (!providerPrice || !marketHistoricalData) {
-    return NextResponse.json({ error: "providerPrice et marketHistoricalData sont obligatoires" }, { status: 400 });
-  }
-
+  // Garantir que la réponse est toujours du JSON
   try {
-    const broker = await getBroker();
-    await ensureLedgerFunded(broker);
+    const body = (await req.json()) as CompetitivenessRequest;
 
-    const systemPrompt = `Tu es un assistant d'analyse de compétitivité pour un système d'enchères B2B scellées.
+    // GARDE DE SÉCURITÉ : refus explicite si des données concurrentes sont présentes
+    if ("competitorPrices" in body || "otherBids" in body || "allSubmissions" in body) {
+      return NextResponse.json(
+        {
+          error: "ISOLATION_VIOLATION: Ce endpoint ne peut pas recevoir de données d'autres soumissionnaires.",
+          context: "pre-submission",
+        },
+        { status: 400 },
+      );
+    }
+
+    const { providerPrice, providerConditions, auctionCategory, marketHistoricalData } = body;
+
+    if (!providerPrice || !marketHistoricalData) {
+      return NextResponse.json({ error: "providerPrice et marketHistoricalData sont obligatoires" }, { status: 400 });
+    }
+
+    try {
+      const broker = await getBroker();
+      await ensureLedgerFunded(broker);
+
+      const systemPrompt = `Tu es un assistant d'analyse de compétitivité pour un système d'enchères B2B scellées.
 Tu aides exclusivement le fournisseur à évaluer son propre prix par rapport aux données historiques publiques du marché.
 Tu n'as JAMAIS accès aux offres d'autres participants en cours — uniquement des statistiques historiques agrégées.
 Tes recommandations sont indicatives et consultatives. Le fournisseur reste seul décideur.
 Tu réponds TOUJOURS en JSON valide et uniquement en JSON, sans markdown ni backticks.
 Sois précis, chiffré, et actionnable dans tes recommandations.`;
 
-    const userPrompt = buildCompetitivenessPrompt(
-      providerPrice,
-      providerConditions,
-      auctionCategory,
-      marketHistoricalData,
-    );
-
-    const rawResponse = await runInference(broker, systemPrompt, userPrompt, 700);
-
-    // Parser le JSON retourné par l'IA
-    let analysis;
-    try {
-      const cleaned = rawResponse
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-      analysis = JSON.parse(cleaned);
-    } catch {
-      return NextResponse.json(
-        { error: "Le modèle IA a retourné une réponse non parseable", raw: rawResponse },
-        { status: 502 },
+      const userPrompt = buildCompetitivenessPrompt(
+        providerPrice,
+        providerConditions,
+        auctionCategory,
+        marketHistoricalData,
       );
+
+      const rawResponse = await runInference(broker, systemPrompt, userPrompt, 700);
+
+      // Parser le JSON retourné par l'IA — extraction robuste
+      let analysis;
+      try {
+        const cleaned = rawResponse
+          .replace(/```json\n?/gi, "")
+          .replace(/```\n?/g, "")
+          .replace(/^\s*[\r\n]/gm, "")
+          .trim();
+
+        const firstBrace = cleaned.indexOf("{");
+        const lastBrace = cleaned.lastIndexOf("}");
+        if (firstBrace === -1 || lastBrace === -1) {
+          throw new Error("Aucun objet JSON trouvé dans la réponse IA");
+        }
+        const jsonStr = cleaned.slice(firstBrace, lastBrace + 1);
+        analysis = JSON.parse(jsonStr);
+      } catch (parseError: any) {
+        console.error("[Parse Error] Réponse brute :", rawResponse);
+        // Basculer sur le fallback statistique plutôt que retourner 502
+        const fallbackAnalysis = computeCompetitivenessFallback(providerPrice, marketHistoricalData);
+        return NextResponse.json({
+          analysis: fallbackAnalysis,
+          source: "parse-error-fallback",
+          parseError: parseError.message,
+          raw: rawResponse.slice(0, 200),
+        });
+      }
+
+      return NextResponse.json({ analysis, source: "0g-compute" });
+    } catch (ogError: any) {
+      console.warn("[0G Unavailable] Switching to statistical fallback:", ogError.message);
+
+      // Fallback — calcul statistique pur
+      const fallbackAnalysis = computeCompetitivenessFallback(providerPrice, marketHistoricalData);
+      return NextResponse.json({
+        analysis: fallbackAnalysis,
+        source: "statistical-fallback",
+        fallbackReason: ogError.message,
+      });
     }
-
-    return NextResponse.json({ analysis, source: "0g-compute" });
-  } catch (ogError: any) {
-    console.warn("[0G Unavailable] Switching to statistical fallback:", ogError.message);
-
-    // Fallback — calcul statistique pur
-    const fallbackAnalysis = computeCompetitivenessFallback(providerPrice, marketHistoricalData);
-    return NextResponse.json({
-      analysis: fallbackAnalysis,
-      source: "statistical-fallback",
-      fallbackReason: ogError.message,
-    });
+  } catch (error: any) {
+    console.error("[API Error] competitiveness:", error);
+    return NextResponse.json(
+      {
+        error: error?.message || "Erreur interne",
+        details: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+      },
+      { status: 500 },
+    );
   }
 }
 

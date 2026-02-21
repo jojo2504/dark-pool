@@ -66,27 +66,28 @@ function buildFallbackInsights(body: ProviderInsightsRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as ProviderInsightsRequest;
-  const { providerAddress, bidHistory } = body;
-
-  if (!providerAddress || !bidHistory) {
-    return NextResponse.json({ error: "providerAddress and bidHistory are required" }, { status: 400 });
-  }
-
   try {
-    const broker = await getBroker();
-    await ensureLedgerFunded(broker);
+    const body = (await req.json()) as ProviderInsightsRequest;
+    const { providerAddress, bidHistory } = body;
 
-    const systemPrompt = `You are a performance analyst for sealed-bid auction participants.
+    if (!providerAddress || !bidHistory) {
+      return NextResponse.json({ error: "providerAddress and bidHistory are required" }, { status: 400 });
+    }
+
+    try {
+      const broker = await getBroker();
+      await ensureLedgerFunded(broker);
+
+      const systemPrompt = `You are a performance analyst for sealed-bid auction participants.
 You analyze a provider's past bidding history to extract actionable insights.
 You NEVER reveal other participants' data — only the requesting provider's own history.
 You respond ONLY in valid JSON, no markdown, no backticks.`;
 
-    const wins = bidHistory.filter(b => b.won).length;
-    const losses = bidHistory.length - wins;
-    const avgPrice = bidHistory.reduce((s, b) => s + b.price, 0) / bidHistory.length;
+      const wins = bidHistory.filter(b => b.won).length;
+      const losses = bidHistory.length - wins;
+      const avgPrice = bidHistory.reduce((s, b) => s + b.price, 0) / bidHistory.length;
 
-    const userPrompt = `
+      const userPrompt = `
 Analyze this provider's auction performance:
 
 PROVIDER: ${providerAddress.slice(0, 10)}...
@@ -110,27 +111,48 @@ Return ONLY this JSON (no markdown):
   "trendDirection": "<improving|declining|stable>"
 }`.trim();
 
-    const rawResponse = await runInference(broker, systemPrompt, userPrompt, 700);
+      const rawResponse = await runInference(broker, systemPrompt, userPrompt, 700);
 
-    let insights;
-    try {
-      const cleaned = rawResponse
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-      insights = JSON.parse(cleaned);
-    } catch {
-      return NextResponse.json({ error: "AI response not parseable", raw: rawResponse }, { status: 502 });
+      let insights;
+      try {
+        const cleaned = rawResponse
+          .replace(/```json\n?/gi, "")
+          .replace(/```\n?/g, "")
+          .replace(/^\s*[\r\n]/gm, "")
+          .trim();
+
+        const firstBrace = cleaned.indexOf("{");
+        const lastBrace = cleaned.lastIndexOf("}");
+        if (firstBrace === -1 || lastBrace === -1) throw new Error("No JSON object found");
+        insights = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+      } catch (parseError: any) {
+        console.error("[Parse Error] provider-insights:", rawResponse);
+        const fallbackInsights = buildFallbackInsights(body);
+        return NextResponse.json({
+          insights: fallbackInsights,
+          source: "parse-error-fallback",
+          parseError: parseError.message,
+        });
+      }
+
+      return NextResponse.json({ insights, source: "0g-compute" });
+    } catch (ogError: any) {
+      console.warn("[0G Unavailable] Provider insights fallback:", ogError.message);
+      const fallbackInsights = buildFallbackInsights(body);
+      return NextResponse.json({
+        insights: fallbackInsights,
+        source: "statistical-fallback",
+        fallbackReason: ogError.message,
+      });
     }
-
-    return NextResponse.json({ insights, source: "0g-compute" });
-  } catch (ogError: any) {
-    console.warn("[0G Unavailable] Provider insights fallback:", ogError.message);
-    const fallbackInsights = buildFallbackInsights(body);
-    return NextResponse.json({
-      insights: fallbackInsights,
-      source: "statistical-fallback",
-      fallbackReason: ogError.message,
-    });
+  } catch (error: any) {
+    console.error("[API Error] provider-insights:", error);
+    return NextResponse.json(
+      {
+        error: error?.message || "Internal error",
+        details: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+      },
+      { status: 500 },
+    );
   }
 }

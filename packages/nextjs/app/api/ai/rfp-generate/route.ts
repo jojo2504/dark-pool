@@ -30,22 +30,23 @@ function buildFallbackRFP(body: RFPGenerateRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as RFPGenerateRequest;
-  const { assetType, requirements } = body;
-
-  if (!assetType || !requirements) {
-    return NextResponse.json({ error: "assetType and requirements are required" }, { status: 400 });
-  }
-
   try {
-    const broker = await getBroker();
-    await ensureLedgerFunded(broker);
+    const body = (await req.json()) as RFPGenerateRequest;
+    const { assetType, requirements } = body;
 
-    const systemPrompt = `You are an expert RFP (Request for Proposal) writer for institutional RWA sealed-bid auctions.
+    if (!assetType || !requirements) {
+      return NextResponse.json({ error: "assetType and requirements are required" }, { status: 400 });
+    }
+
+    try {
+      const broker = await getBroker();
+      await ensureLedgerFunded(broker);
+
+      const systemPrompt = `You are an expert RFP (Request for Proposal) writer for institutional RWA sealed-bid auctions.
 You help buyers create clear, professional auction listings that maximize quality bid submissions.
 You respond ONLY in valid JSON, no markdown, no backticks.`;
 
-    const userPrompt = `
+      const userPrompt = `
 Generate a professional auction listing from these inputs:
 
 ASSET TYPE: ${assetType}
@@ -63,27 +64,48 @@ Return ONLY this JSON (no markdown):
   "keyTerms": ["<term1>", "<term2>", ...]
 }`.trim();
 
-    const rawResponse = await runInference(broker, systemPrompt, userPrompt, 800);
+      const rawResponse = await runInference(broker, systemPrompt, userPrompt, 800);
 
-    let rfp;
-    try {
-      const cleaned = rawResponse
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-      rfp = JSON.parse(cleaned);
-    } catch {
-      return NextResponse.json({ error: "AI response not parseable", raw: rawResponse }, { status: 502 });
+      let rfp;
+      try {
+        const cleaned = rawResponse
+          .replace(/```json\n?/gi, "")
+          .replace(/```\n?/g, "")
+          .replace(/^\s*[\r\n]/gm, "")
+          .trim();
+
+        const firstBrace = cleaned.indexOf("{");
+        const lastBrace = cleaned.lastIndexOf("}");
+        if (firstBrace === -1 || lastBrace === -1) throw new Error("No JSON object found");
+        rfp = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+      } catch (parseError: any) {
+        console.error("[Parse Error] rfp-generate:", rawResponse);
+        const fallbackRFP = buildFallbackRFP(body);
+        return NextResponse.json({
+          rfp: fallbackRFP,
+          source: "parse-error-fallback",
+          parseError: parseError.message,
+        });
+      }
+
+      return NextResponse.json({ rfp, source: "0g-compute" });
+    } catch (ogError: any) {
+      console.warn("[0G Unavailable] RFP generation fallback:", ogError.message);
+      const fallbackRFP = buildFallbackRFP(body);
+      return NextResponse.json({
+        rfp: fallbackRFP,
+        source: "statistical-fallback",
+        fallbackReason: ogError.message,
+      });
     }
-
-    return NextResponse.json({ rfp, source: "0g-compute" });
-  } catch (ogError: any) {
-    console.warn("[0G Unavailable] RFP generation fallback:", ogError.message);
-    const fallbackRFP = buildFallbackRFP(body);
-    return NextResponse.json({
-      rfp: fallbackRFP,
-      source: "statistical-fallback",
-      fallbackReason: ogError.message,
-    });
+  } catch (error: any) {
+    console.error("[API Error] rfp-generate:", error);
+    return NextResponse.json(
+      {
+        error: error?.message || "Internal error",
+        details: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+      },
+      { status: 500 },
+    );
   }
 }

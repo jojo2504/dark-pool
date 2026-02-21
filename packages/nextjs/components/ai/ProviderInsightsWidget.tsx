@@ -37,12 +37,16 @@ export function ProviderInsightsWidget({ providerAddress, bidHistory }: Provider
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ providerAddress, bidHistory }),
       });
+      const rawText = await res.text();
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || `HTTP ${res.status}`);
+        let errMsg = `HTTP ${res.status}`;
+        try {
+          errMsg = JSON.parse(rawText).error || errMsg;
+        } catch {}
+        throw new Error(errMsg);
       }
-      const { insights: result } = await res.json();
-      setInsights(result);
+      const data = JSON.parse(rawText);
+      setInsights(data.insights);
     } catch (e: any) {
       setError(e.message || "Insights generation failed");
     } finally {

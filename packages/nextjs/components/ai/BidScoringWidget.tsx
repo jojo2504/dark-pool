@@ -43,12 +43,16 @@ export function BidScoringWidget({ auctionTitle, auctionDescription, revealedBid
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ auctionTitle, auctionDescription, revealedBids }),
       });
+      const rawText = await res.text();
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || `HTTP ${res.status}`);
+        let errMsg = `HTTP ${res.status}`;
+        try {
+          errMsg = JSON.parse(rawText).error || errMsg;
+        } catch {}
+        throw new Error(errMsg);
       }
-      const { scoring } = await res.json();
-      setResult(scoring);
+      const data = JSON.parse(rawText);
+      setResult(data.scoring);
     } catch (e: any) {
       setError(e.message || "Scoring failed");
     } finally {

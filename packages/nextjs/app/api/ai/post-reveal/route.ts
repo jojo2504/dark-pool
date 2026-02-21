@@ -20,53 +20,81 @@ interface PostRevealRequest {
 }
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as PostRevealRequest;
-  const { auctionId, auctionCategory, revealedBids } = body;
-
-  if (!revealedBids || revealedBids.length < 2) {
-    return NextResponse.json(
-      { error: "Minimum 2 offres révélées requises pour l'analyse statistique." },
-      { status: 400 },
-    );
-  }
-
   try {
-    const broker = await getBroker();
-    await ensureLedgerFunded(broker);
+    const body = (await req.json()) as PostRevealRequest;
+    const { auctionId, auctionCategory, revealedBids } = body;
 
-    const systemPrompt = `Tu es un expert en analyse d'appels d'offres, marchés publics décentralisés, et détection de comportements anticoncurrentiels.
+    if (!revealedBids || revealedBids.length < 2) {
+      return NextResponse.json(
+        { error: "Minimum 2 offres révélées requises pour l'analyse statistique." },
+        { status: 400 },
+      );
+    }
+
+    try {
+      const broker = await getBroker();
+      await ensureLedgerFunded(broker);
+
+      const systemPrompt = `Tu es un expert en analyse d'appels d'offres, marchés publics décentralisés, et détection de comportements anticoncurrentiels.
 Tu analyses des enchères scellées APRÈS leur révélation publique on-chain.
 Toutes les données que tu reçois sont désormais publiques et vérifiables sur la blockchain.
 Tu fournis une analyse objective, des alertes factuelles, et des recommandations stratégiques pour l'acheteur.
 Tu réponds TOUJOURS en JSON valide uniquement, sans markdown ni backticks.`;
 
-    const userPrompt = buildPostRevealPrompt(auctionId, auctionCategory, revealedBids, body);
+      const userPrompt = buildPostRevealPrompt(auctionId, auctionCategory, revealedBids, body);
 
-    const rawResponse = await runInference(broker, systemPrompt, userPrompt, 900);
+      const rawResponse = await runInference(broker, systemPrompt, userPrompt, 900);
 
-    let report;
-    try {
-      const cleaned = rawResponse
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-      report = JSON.parse(cleaned);
-    } catch {
-      return NextResponse.json({ error: "Réponse IA non parseable", raw: rawResponse }, { status: 502 });
+      let report;
+      try {
+        const cleaned = rawResponse
+          .replace(/```json\n?/gi, "")
+          .replace(/```\n?/g, "")
+          .replace(/^\s*[\r\n]/gm, "")
+          .trim();
+
+        const firstBrace = cleaned.indexOf("{");
+        const lastBrace = cleaned.lastIndexOf("}");
+        if (firstBrace === -1 || lastBrace === -1) {
+          throw new Error("Aucun objet JSON trouvé dans la réponse IA");
+        }
+        const jsonStr = cleaned.slice(firstBrace, lastBrace + 1);
+        report = JSON.parse(jsonStr);
+      } catch (parseError: any) {
+        console.error("[Parse Error] Réponse brute :", rawResponse);
+        const fallbackReport = computePostRevealFallback(revealedBids);
+        return NextResponse.json({
+          report: fallbackReport,
+          auctionId,
+          analyzedAt: Date.now(),
+          source: "parse-error-fallback",
+          parseError: parseError.message,
+          raw: rawResponse.slice(0, 200),
+        });
+      }
+
+      return NextResponse.json({ report, auctionId, analyzedAt: Date.now(), source: "0g-compute" });
+    } catch (ogError: any) {
+      console.warn("[0G Unavailable] Post-reveal fallback:", ogError.message);
+
+      const fallbackReport = computePostRevealFallback(revealedBids);
+      return NextResponse.json({
+        report: fallbackReport,
+        auctionId,
+        analyzedAt: Date.now(),
+        source: "statistical-fallback",
+        fallbackReason: ogError.message,
+      });
     }
-
-    return NextResponse.json({ report, auctionId, analyzedAt: Date.now(), source: "0g-compute" });
-  } catch (ogError: any) {
-    console.warn("[0G Unavailable] Post-reveal fallback:", ogError.message);
-
-    const fallbackReport = computePostRevealFallback(revealedBids);
-    return NextResponse.json({
-      report: fallbackReport,
-      auctionId,
-      analyzedAt: Date.now(),
-      source: "statistical-fallback",
-      fallbackReason: ogError.message,
-    });
+  } catch (error: any) {
+    console.error("[API Error] post-reveal:", error);
+    return NextResponse.json(
+      {
+        error: error?.message || "Erreur interne",
+        details: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+      },
+      { status: 500 },
+    );
   }
 }
 

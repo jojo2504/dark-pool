@@ -1,8 +1,6 @@
 import { createZGComputeNetworkBroker } from "@0glabs/0g-serving-broker";
 import { ethers } from "ethers";
 
-const RPC_URL = process.env.OG_RPC_URL || "https://evmrpc-testnet.0g.ai";
-
 let _brokerInstance: Awaited<ReturnType<typeof createZGComputeNetworkBroker>> | null = null;
 
 /**
@@ -14,14 +12,32 @@ export async function getBroker() {
   if (_brokerInstance) return _brokerInstance;
 
   const privateKey = process.env.OG_PRIVATE_KEY;
-  if (!privateKey) throw new Error("OG_PRIVATE_KEY manquant dans les variables d'environnement serveur");
+  if (!privateKey) {
+    throw new Error("OG_PRIVATE_KEY manquant dans .env.local — vérifier la configuration");
+  }
 
-  const provider = new ethers.JsonRpcProvider(RPC_URL);
-  const wallet = new ethers.Wallet(privateKey, provider);
+  // S'assurer que la clé commence par 0x
+  const formattedKey = privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`;
 
-  const broker = await createZGComputeNetworkBroker(wallet);
-  _brokerInstance = broker;
-  return broker;
+  const rpcUrl = process.env.OG_RPC_URL || "https://evmrpc-testnet.0g.ai";
+
+  try {
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
+
+    // Test de connectivité avant d'initialiser le broker
+    const network = await Promise.race([
+      provider.getNetwork(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("RPC timeout (10s)")), 10_000)),
+    ]);
+    console.log("[0G] Connecté au réseau :", (network as any).chainId);
+
+    const wallet = new ethers.Wallet(formattedKey, provider);
+    const broker = await createZGComputeNetworkBroker(wallet);
+    _brokerInstance = broker;
+    return broker;
+  } catch (e: any) {
+    throw new Error(`Impossible d'initialiser le broker 0G : ${e.message}`);
+  }
 }
 
 /**
@@ -134,6 +150,8 @@ export function invalidateProviderCache(): void {
  * Effectue une requête d'inférence complète sur 0G Compute.
  * Gère automatiquement la sélection de provider (cache), les headers, la requête
  * et le règlement des frais. Invalide le cache en cas d'erreur réseau.
+ *
+ * Inclut un timeout de 30 secondes et une protection contre les réponses vides.
  */
 export async function runInference(
   broker: OGBroker,
@@ -145,11 +163,15 @@ export async function runInference(
   try {
     cached = await getCachedProvider(broker);
   } catch {
-    throw new Error("Impossible de trouver un provider 0G disponible. Réseau indisponible.");
+    throw new Error("Aucun provider 0G disponible");
   }
 
   // CRITIQUE : les headers sont à usage unique — générer pour chaque requête
   const headers = await broker.inference.getRequestHeaders(cached.address, userPrompt);
+
+  // Timeout de 30 secondes
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
 
   let response: Response;
   try {
@@ -168,28 +190,48 @@ export async function runInference(
         max_tokens: maxTokens,
         temperature: 0.3,
       }),
+      signal: controller.signal,
     });
-  } catch (networkError) {
+  } catch (networkError: any) {
     invalidateProviderCache();
-    throw new Error(`Network error reaching 0G provider: ${networkError}`);
+    if (networkError.name === "AbortError") {
+      throw new Error("Timeout 0G Compute (30s) — provider trop lent, bascule sur fallback");
+    }
+    throw new Error(`Erreur réseau 0G : ${networkError.message}`);
+  } finally {
+    clearTimeout(timeout);
   }
 
   if (!response.ok) {
-    const errText = await response.text();
+    const errText = await response.text().catch(() => "Réponse illisible");
     invalidateProviderCache();
-    throw new Error(`0G Compute HTTP ${response.status}: ${errText}`);
+    throw new Error(`0G HTTP ${response.status}: ${errText}`);
   }
 
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content;
+  // Lire le body avec protection contre les réponses vides
+  const rawText = await response.text().catch(() => "");
+  if (!rawText || rawText.trim() === "") {
+    invalidateProviderCache();
+    throw new Error("0G Compute a retourné une réponse vide");
+  }
 
-  if (!content) throw new Error("Réponse vide de 0G Compute");
+  let data: any;
+  try {
+    data = JSON.parse(rawText);
+  } catch {
+    throw new Error(`0G Compute réponse non-JSON : ${rawText.slice(0, 100)}`);
+  }
+
+  const content = data.choices?.[0]?.message?.content;
+  if (!content || content.trim() === "") {
+    throw new Error("Contenu vide dans la réponse 0G Compute");
+  }
 
   // Règlement des frais après réception — OBLIGATOIRE selon le protocole 0G
   try {
     await broker.inference.processResponse(cached.address, content);
   } catch (e) {
-    console.warn("[0G] processResponse échoué (non bloquant) :", e);
+    console.warn("[0G] processResponse non-bloquant :", e);
   }
 
   return content;

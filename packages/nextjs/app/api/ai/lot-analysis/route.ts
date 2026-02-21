@@ -33,22 +33,23 @@ function buildFallbackAnalysis(body: LotAnalysisRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as LotAnalysisRequest;
-  const { auctionTitle, auctionDescription } = body;
-
-  if (!auctionTitle || !auctionDescription) {
-    return NextResponse.json({ error: "auctionTitle and auctionDescription are required" }, { status: 400 });
-  }
-
   try {
-    const broker = await getBroker();
-    await ensureLedgerFunded(broker);
+    const body = (await req.json()) as LotAnalysisRequest;
+    const { auctionTitle, auctionDescription } = body;
 
-    const systemPrompt = `You are an expert procurement analyst for sealed-bid RWA auctions.
+    if (!auctionTitle || !auctionDescription) {
+      return NextResponse.json({ error: "auctionTitle and auctionDescription are required" }, { status: 400 });
+    }
+
+    try {
+      const broker = await getBroker();
+      await ensureLedgerFunded(broker);
+
+      const systemPrompt = `You are an expert procurement analyst for sealed-bid RWA auctions.
 You analyze auction lots to help providers understand requirements and position their bid strategically.
 You respond ONLY in valid JSON, no markdown, no backticks.`;
 
-    const userPrompt = `
+      const userPrompt = `
 Analyze this auction lot for a potential bidder:
 
 TITLE: "${auctionTitle}"
@@ -65,27 +66,48 @@ Return ONLY this JSON (no markdown):
   "idealProfileDescription": "<description of ideal bidder profile>"
 }`.trim();
 
-    const rawResponse = await runInference(broker, systemPrompt, userPrompt, 700);
+      const rawResponse = await runInference(broker, systemPrompt, userPrompt, 700);
 
-    let analysis;
-    try {
-      const cleaned = rawResponse
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-      analysis = JSON.parse(cleaned);
-    } catch {
-      return NextResponse.json({ error: "AI response not parseable", raw: rawResponse }, { status: 502 });
+      let analysis;
+      try {
+        const cleaned = rawResponse
+          .replace(/```json\n?/gi, "")
+          .replace(/```\n?/g, "")
+          .replace(/^\s*[\r\n]/gm, "")
+          .trim();
+
+        const firstBrace = cleaned.indexOf("{");
+        const lastBrace = cleaned.lastIndexOf("}");
+        if (firstBrace === -1 || lastBrace === -1) throw new Error("No JSON object found");
+        analysis = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+      } catch (parseError: any) {
+        console.error("[Parse Error] lot-analysis:", rawResponse);
+        const fallbackAnalysis = buildFallbackAnalysis(body);
+        return NextResponse.json({
+          analysis: fallbackAnalysis,
+          source: "parse-error-fallback",
+          parseError: parseError.message,
+        });
+      }
+
+      return NextResponse.json({ analysis, source: "0g-compute" });
+    } catch (ogError: any) {
+      console.warn("[0G Unavailable] Lot analysis fallback:", ogError.message);
+      const fallbackAnalysis = buildFallbackAnalysis(body);
+      return NextResponse.json({
+        analysis: fallbackAnalysis,
+        source: "statistical-fallback",
+        fallbackReason: ogError.message,
+      });
     }
-
-    return NextResponse.json({ analysis, source: "0g-compute" });
-  } catch (ogError: any) {
-    console.warn("[0G Unavailable] Lot analysis fallback:", ogError.message);
-    const fallbackAnalysis = buildFallbackAnalysis(body);
-    return NextResponse.json({
-      analysis: fallbackAnalysis,
-      source: "statistical-fallback",
-      fallbackReason: ogError.message,
-    });
+  } catch (error: any) {
+    console.error("[API Error] lot-analysis:", error);
+    return NextResponse.json(
+      {
+        error: error?.message || "Internal error",
+        details: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+      },
+      { status: 500 },
+    );
   }
 }

@@ -47,22 +47,23 @@ function buildFallbackCategorization(body: CategorizeRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as CategorizeRequest;
-  const { title, description } = body;
-
-  if (!title) {
-    return NextResponse.json({ error: "title is required" }, { status: 400 });
-  }
-
   try {
-    const broker = await getBroker();
-    await ensureLedgerFunded(broker);
+    const body = (await req.json()) as CategorizeRequest;
+    const { title, description } = body;
 
-    const systemPrompt = `You are a categorization expert for institutional RWA (Real World Asset) auctions.
+    if (!title) {
+      return NextResponse.json({ error: "title is required" }, { status: 400 });
+    }
+
+    try {
+      const broker = await getBroker();
+      await ensureLedgerFunded(broker);
+
+      const systemPrompt = `You are a categorization expert for institutional RWA (Real World Asset) auctions.
 You classify auctions into industry categories based on their title and description.
 You respond ONLY in valid JSON, no markdown, no backticks.`;
 
-    const userPrompt = `
+      const userPrompt = `
 Categorize this auction:
 
 TITLE: "${title}"
@@ -78,27 +79,48 @@ Return ONLY this JSON (no markdown):
   "confidence": <number 0-1>
 }`.trim();
 
-    const rawResponse = await runInference(broker, systemPrompt, userPrompt, 400);
+      const rawResponse = await runInference(broker, systemPrompt, userPrompt, 400);
 
-    let categorization;
-    try {
-      const cleaned = rawResponse
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-      categorization = JSON.parse(cleaned);
-    } catch {
-      return NextResponse.json({ error: "AI response not parseable", raw: rawResponse }, { status: 502 });
+      let categorization;
+      try {
+        const cleaned = rawResponse
+          .replace(/```json\n?/gi, "")
+          .replace(/```\n?/g, "")
+          .replace(/^\s*[\r\n]/gm, "")
+          .trim();
+
+        const firstBrace = cleaned.indexOf("{");
+        const lastBrace = cleaned.lastIndexOf("}");
+        if (firstBrace === -1 || lastBrace === -1) throw new Error("No JSON object found");
+        categorization = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+      } catch (parseError: any) {
+        console.error("[Parse Error] categorize:", rawResponse);
+        const fallback = buildFallbackCategorization(body);
+        return NextResponse.json({
+          categorization: fallback,
+          source: "parse-error-fallback",
+          parseError: parseError.message,
+        });
+      }
+
+      return NextResponse.json({ categorization, source: "0g-compute" });
+    } catch (ogError: any) {
+      console.warn("[0G Unavailable] Categorization fallback:", ogError.message);
+      const fallback = buildFallbackCategorization(body);
+      return NextResponse.json({
+        categorization: fallback,
+        source: "statistical-fallback",
+        fallbackReason: ogError.message,
+      });
     }
-
-    return NextResponse.json({ categorization, source: "0g-compute" });
-  } catch (ogError: any) {
-    console.warn("[0G Unavailable] Categorization fallback:", ogError.message);
-    const fallback = buildFallbackCategorization(body);
-    return NextResponse.json({
-      categorization: fallback,
-      source: "statistical-fallback",
-      fallbackReason: ogError.message,
-    });
+  } catch (error: any) {
+    console.error("[API Error] categorize:", error);
+    return NextResponse.json(
+      {
+        error: error?.message || "Internal error",
+        details: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+      },
+      { status: 500 },
+    );
   }
 }

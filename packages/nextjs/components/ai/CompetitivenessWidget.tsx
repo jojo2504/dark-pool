@@ -64,13 +64,16 @@ export function CompetitivenessWidget({
         }),
       });
 
+      const rawText = await res.text();
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || `HTTP ${res.status}`);
+        let errMsg = `HTTP ${res.status}`;
+        try {
+          errMsg = JSON.parse(rawText).error || errMsg;
+        } catch {}
+        throw new Error(errMsg);
       }
-
-      const { analysis: result } = await res.json();
-      setAnalysis(result);
+      const data = JSON.parse(rawText);
+      setAnalysis(data.analysis);
       setAnalyzedPrice(providerPrice);
     } catch (e: any) {
       setError(e.message || "Analyse échouée");

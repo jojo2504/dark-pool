@@ -29,12 +29,16 @@ export function CategoryWidget({ title, description }: CategoryWidgetProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, description }),
       });
+      const rawText = await res.text();
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || `HTTP ${res.status}`);
+        let errMsg = `HTTP ${res.status}`;
+        try {
+          errMsg = JSON.parse(rawText).error || errMsg;
+        } catch {}
+        throw new Error(errMsg);
       }
-      const { categorization } = await res.json();
-      setResult(categorization);
+      const data = JSON.parse(rawText);
+      setResult(data.categorization);
     } catch (e: any) {
       setError(e.message || "Categorization failed");
     } finally {

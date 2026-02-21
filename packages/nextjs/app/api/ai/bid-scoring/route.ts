@@ -45,30 +45,31 @@ function buildFallbackScoring(body: BidScoringRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as BidScoringRequest;
-  const { auctionTitle, auctionDescription, revealedBids } = body;
-
-  if (!revealedBids || revealedBids.length < 2) {
-    return NextResponse.json({ error: "Minimum 2 revealed bids required for scoring" }, { status: 400 });
-  }
-
   try {
-    const broker = await getBroker();
-    await ensureLedgerFunded(broker);
+    const body = (await req.json()) as BidScoringRequest;
+    const { auctionTitle, auctionDescription, revealedBids } = body;
 
-    const systemPrompt = `You are a procurement evaluation expert for sealed-bid RWA auctions.
+    if (!revealedBids || revealedBids.length < 2) {
+      return NextResponse.json({ error: "Minimum 2 revealed bids required for scoring" }, { status: 400 });
+    }
+
+    try {
+      const broker = await getBroker();
+      await ensureLedgerFunded(broker);
+
+      const systemPrompt = `You are a procurement evaluation expert for sealed-bid RWA auctions.
 You score revealed bids across multiple criteria to help buyers make informed decisions.
 All bids have been publicly revealed on-chain. Your analysis must be fair and objective.
 You respond ONLY in valid JSON, no markdown, no backticks.`;
 
-    const anonymizedBids = revealedBids.map((b, i) => ({
-      id: `Bidder_${i + 1}`,
-      address: b.bidderAddress,
-      price: b.price,
-      conditions: b.conditions,
-    }));
+      const anonymizedBids = revealedBids.map((b, i) => ({
+        id: `Bidder_${i + 1}`,
+        address: b.bidderAddress,
+        price: b.price,
+        conditions: b.conditions,
+      }));
 
-    const userPrompt = `
+      const userPrompt = `
 Score these revealed bids for auction "${auctionTitle}":
 Description: "${auctionDescription}"
 
@@ -92,27 +93,48 @@ Return ONLY this JSON (no markdown):
   "recommendation": "<2-3 sentences of buyer recommendation>"
 }`.trim();
 
-    const rawResponse = await runInference(broker, systemPrompt, userPrompt, 900);
+      const rawResponse = await runInference(broker, systemPrompt, userPrompt, 900);
 
-    let scoring;
-    try {
-      const cleaned = rawResponse
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-      scoring = JSON.parse(cleaned);
-    } catch {
-      return NextResponse.json({ error: "AI response not parseable", raw: rawResponse }, { status: 502 });
+      let scoring;
+      try {
+        const cleaned = rawResponse
+          .replace(/```json\n?/gi, "")
+          .replace(/```\n?/g, "")
+          .replace(/^\s*[\r\n]/gm, "")
+          .trim();
+
+        const firstBrace = cleaned.indexOf("{");
+        const lastBrace = cleaned.lastIndexOf("}");
+        if (firstBrace === -1 || lastBrace === -1) throw new Error("No JSON object found");
+        scoring = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+      } catch (parseError: any) {
+        console.error("[Parse Error] bid-scoring:", rawResponse);
+        const fallbackScoring = buildFallbackScoring(body);
+        return NextResponse.json({
+          scoring: fallbackScoring,
+          source: "parse-error-fallback",
+          parseError: parseError.message,
+        });
+      }
+
+      return NextResponse.json({ scoring, source: "0g-compute" });
+    } catch (ogError: any) {
+      console.warn("[0G Unavailable] Bid scoring fallback:", ogError.message);
+      const fallbackScoring = buildFallbackScoring(body);
+      return NextResponse.json({
+        scoring: fallbackScoring,
+        source: "statistical-fallback",
+        fallbackReason: ogError.message,
+      });
     }
-
-    return NextResponse.json({ scoring, source: "0g-compute" });
-  } catch (ogError: any) {
-    console.warn("[0G Unavailable] Bid scoring fallback:", ogError.message);
-    const fallbackScoring = buildFallbackScoring(body);
-    return NextResponse.json({
-      scoring: fallbackScoring,
-      source: "statistical-fallback",
-      fallbackReason: ogError.message,
-    });
+  } catch (error: any) {
+    console.error("[API Error] bid-scoring:", error);
+    return NextResponse.json(
+      {
+        error: error?.message || "Internal error",
+        details: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+      },
+      { status: 500 },
+    );
   }
 }

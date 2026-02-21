@@ -57,29 +57,30 @@ function buildFallbackBenchmark(body: BenchmarkRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as BenchmarkRequest;
-  const { category, recentAuctions } = body;
-
-  if (!category) {
-    return NextResponse.json({ error: "category is required" }, { status: 400 });
-  }
-
   try {
-    const broker = await getBroker();
-    await ensureLedgerFunded(broker);
+    const body = (await req.json()) as BenchmarkRequest;
+    const { category, recentAuctions } = body;
 
-    const systemPrompt = `You are a market analyst for institutional RWA sealed-bid auctions.
+    if (!category) {
+      return NextResponse.json({ error: "category is required" }, { status: 400 });
+    }
+
+    try {
+      const broker = await getBroker();
+      await ensureLedgerFunded(broker);
+
+      const systemPrompt = `You are a market analyst for institutional RWA sealed-bid auctions.
 You generate sector-specific benchmarks and insights from historical auction data.
 You respond ONLY in valid JSON, no markdown, no backticks.`;
 
-    const auctionsSummary = (recentAuctions || [])
-      .map(
-        (a, i) =>
-          `- Auction ${i + 1}: "${a.title}" — Winner: ${a.winningPrice} ADI, ${a.bidCount} bids, ${a.duration}h duration`,
-      )
-      .join("\n");
+      const auctionsSummary = (recentAuctions || [])
+        .map(
+          (a, i) =>
+            `- Auction ${i + 1}: "${a.title}" — Winner: ${a.winningPrice} ADI, ${a.bidCount} bids, ${a.duration}h duration`,
+        )
+        .join("\n");
 
-    const userPrompt = `
+      const userPrompt = `
 Generate market benchmarks for sector "${category}":
 
 RECENT AUCTIONS (${recentAuctions?.length || 0}):
@@ -95,27 +96,48 @@ Return ONLY this JSON (no markdown):
   "recommendations": ["<rec1>", "<rec2>", "<rec3>"]
 }`.trim();
 
-    const rawResponse = await runInference(broker, systemPrompt, userPrompt, 600);
+      const rawResponse = await runInference(broker, systemPrompt, userPrompt, 600);
 
-    let benchmark;
-    try {
-      const cleaned = rawResponse
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-      benchmark = JSON.parse(cleaned);
-    } catch {
-      return NextResponse.json({ error: "AI response not parseable", raw: rawResponse }, { status: 502 });
+      let benchmark;
+      try {
+        const cleaned = rawResponse
+          .replace(/```json\n?/gi, "")
+          .replace(/```\n?/g, "")
+          .replace(/^\s*[\r\n]/gm, "")
+          .trim();
+
+        const firstBrace = cleaned.indexOf("{");
+        const lastBrace = cleaned.lastIndexOf("}");
+        if (firstBrace === -1 || lastBrace === -1) throw new Error("No JSON object found");
+        benchmark = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+      } catch (parseError: any) {
+        console.error("[Parse Error] benchmark:", rawResponse);
+        const fallback = buildFallbackBenchmark(body);
+        return NextResponse.json({
+          benchmark: fallback,
+          source: "parse-error-fallback",
+          parseError: parseError.message,
+        });
+      }
+
+      return NextResponse.json({ benchmark, source: "0g-compute" });
+    } catch (ogError: any) {
+      console.warn("[0G Unavailable] Benchmark fallback:", ogError.message);
+      const fallback = buildFallbackBenchmark(body);
+      return NextResponse.json({
+        benchmark: fallback,
+        source: "statistical-fallback",
+        fallbackReason: ogError.message,
+      });
     }
-
-    return NextResponse.json({ benchmark, source: "0g-compute" });
-  } catch (ogError: any) {
-    console.warn("[0G Unavailable] Benchmark fallback:", ogError.message);
-    const fallback = buildFallbackBenchmark(body);
-    return NextResponse.json({
-      benchmark: fallback,
-      source: "statistical-fallback",
-      fallbackReason: ogError.message,
-    });
+  } catch (error: any) {
+    console.error("[API Error] benchmark:", error);
+    return NextResponse.json(
+      {
+        error: error?.message || "Internal error",
+        details: process.env.NODE_ENV === "development" ? error?.stack : undefined,
+      },
+      { status: 500 },
+    );
   }
 }
