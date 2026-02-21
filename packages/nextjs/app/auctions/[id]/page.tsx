@@ -149,7 +149,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
     { label: "DEPOSIT", value: formatWei(depositRequired) },
     { label: "CLOSE", value: formatTimestamp(closeTime) },
     { label: "REVEAL DL", value: formatTimestamp(revealDeadline) },
-    { label: "BID COUNT", value: String(Number(bidCount)) },
+    ...(isBuyer ? [{ label: "BID COUNT", value: String(Number(bidCount)) }] : []),
     { label: "CREATOR BOND", value: creatorBond > 0n ? formatWei(creatorBond) : "NONE" },
     ...(oracle !== ZERO_ADDRESS ? [{ label: "ORACLE", value: formatAddress(oracle) }] : []),
     ...(biddingStartTime > 0n ? [{ label: "BIDDING OPENS", value: formatTimestamp(biddingStartTime) }] : []),
@@ -220,32 +220,35 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
 
       {/* Stats row */}
       <div className="border-b border-white">
-        <div className="max-w-5xl mx-auto grid grid-cols-2 sm:grid-cols-4">
-          {[
-            { label: "DEPOSIT", value: formatWei(depositRequired), node: null },
-            {
-              label: "CLOSE",
-              value: formatTimestamp(closeTime),
-              node:
-                status === "open" ? (
-                  <Countdown closeTimestamp={Number(closeTime)} className="font-mono text-xs font-bold" />
-                ) : null,
-            },
-            { label: "BIDS", value: String(Number(bidCount)), node: null },
-            { label: "REVEAL", value: formatTimestamp(revealDeadline), node: null },
-          ].map((s, i) => (
-            <div key={s.label} className={`px-6 py-6 ${i < 3 ? "border-r border-white" : ""}`}>
-              <p className="font-mono text-[9px] tracking-[0.2em] uppercase opacity-100 mb-1">{s.label}</p>
-              {s.node ? (
-                <div>
-                  {s.node}
-                  <p className="font-mono text-[9px] opacity-60 mt-1">{s.value}</p>
-                </div>
-              ) : (
-                <p className="font-mono text-xs font-bold">{s.value}</p>
-              )}
-            </div>
-          ))}
+        <div className={`max-w-5xl mx-auto grid grid-cols-2 ${isBuyer ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
+          {(() => {
+            const stats = [
+              { label: "DEPOSIT", value: formatWei(depositRequired), node: null },
+              {
+                label: "CLOSE",
+                value: formatTimestamp(closeTime),
+                node:
+                  status === "open" ? (
+                    <Countdown closeTimestamp={Number(closeTime)} className="font-mono text-xs font-bold" />
+                  ) : null,
+              },
+              ...(isBuyer ? [{ label: "BIDS", value: String(Number(bidCount)), node: null }] : []),
+              { label: "REVEAL", value: formatTimestamp(revealDeadline), node: null },
+            ];
+            return stats.map((s, i) => (
+              <div key={s.label} className={`px-6 py-6 ${i < stats.length - 1 ? "border-r border-white" : ""}`}>
+                <p className="font-mono text-[9px] tracking-[0.2em] uppercase opacity-100 mb-1">{s.label}</p>
+                {s.node ? (
+                  <div>
+                    {s.node}
+                    <p className="font-mono text-[9px] opacity-60 mt-1">{s.value}</p>
+                  </div>
+                ) : (
+                  <p className="font-mono text-xs font-bold">{s.value}</p>
+                )}
+              </div>
+            ));
+          })()}
         </div>
       </div>
 
@@ -466,6 +469,7 @@ export default function AuctionDetailPage({ params }: { params: Promise<{ id: st
               revealDeadline={revealDeadline}
               depositRequired={depositRequired}
               bidCount={bidCount}
+              buyer={buyer}
               requiresAccreditation={requiresAccreditation}
             />
             <div className="border border-white border-t-0 p-4">

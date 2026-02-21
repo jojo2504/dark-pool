@@ -106,10 +106,12 @@ function VaultRow({
             <span className="opacity-100">DEPOSIT: </span>
             <span className="font-bold">{formatWei(vault.depositRequired)}</span>
           </span>
-          <span>
-            <span className="opacity-100">BIDS: </span>
-            <span className="font-bold">{Number(vault.bidCount)}</span>
-          </span>
+          {isBuyer && (
+            <span>
+              <span className="opacity-100">BIDS: </span>
+              <span className="font-bold">{Number(vault.bidCount)}</span>
+            </span>
+          )}
           <span>
             <span className="opacity-100">CLOSE: </span>
             <span className="font-bold">{formatTimestamp(vault.closeTime)}</span>

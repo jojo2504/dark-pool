@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useReadContracts } from "wagmi";
+import { useAccount, useReadContract, useReadContracts } from "wagmi";
 import { Countdown } from "~~/components/darkpool/Countdown";
 import { VAULT_ABI } from "~~/lib/contracts";
+import { ZERO_ADDRESS } from "~~/lib/darkpool-config";
 import { VaultPhase, phaseToStatus } from "~~/lib/types";
 import { formatWei } from "~~/lib/utils";
 
@@ -14,21 +15,34 @@ interface VaultCardProps {
   statusFilter?: string;
 }
 
+const ZERO_HASH = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
 export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCardProps) {
   const contract = { address, abi: VAULT_ABI } as const;
+  const { address: userAddress } = useAccount();
 
   const { data, isLoading, isError } = useReadContracts({
     contracts: [
       { ...contract, functionName: "title" },
       { ...contract, functionName: "closeTime" },
       { ...contract, functionName: "depositRequired" },
-      { ...contract, functionName: "getBidCount" },
       { ...contract, functionName: "getCurrentPhase" },
       { ...contract, functionName: "requiresAccreditation" },
       { ...contract, functionName: "paused" },
       { ...contract, functionName: "oracle" },
     ],
   });
+
+  // Check if the connected user has bid on this vault
+  const { data: userBid } = useReadContract({
+    address,
+    abi: VAULT_ABI,
+    functionName: "bids",
+    args: [userAddress ?? ZERO_ADDRESS],
+    query: { enabled: !!userAddress },
+  });
+
+  const userHasBid = userBid && (userBid as any)[0] !== ZERO_HASH;
 
   if (isLoading) {
     return (
@@ -58,16 +72,19 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
   const title = (data[0].result ?? "UNNAMED") as string;
   const closeTime = (data[1].result ?? 0n) as bigint;
   const depositRequired = (data[2].result ?? 0n) as bigint;
-  const bidCount = (data[3].result ?? 0n) as bigint;
-  const phaseRaw = (data[4].result ?? 0) as number;
-  const requiresAccreditation = (data[5].result ?? false) as boolean;
-  const isPaused = (data[6].result ?? false) as boolean;
-  const oracle = (data[7].result ?? "0x0") as string;
+  const phaseRaw = (data[3].result ?? 0) as number;
+  const requiresAccreditation = (data[4].result ?? false) as boolean;
+  const isPaused = (data[5].result ?? false) as boolean;
+  const oracle = (data[6].result ?? "0x0") as string;
   const hasOracle = oracle !== "0x0000000000000000000000000000000000000000";
 
   const phase = phaseRaw as VaultPhase;
   const status = phaseToStatus(phase, closeTime);
-  if (statusFilter !== "all" && status !== statusFilter) return null;
+  if (statusFilter === "mybids") {
+    if (!userHasBid) return null;
+  } else if (statusFilter !== "all" && status !== statusFilter) {
+    return null;
+  }
 
   const isOpen = status === "open";
 
@@ -96,6 +113,11 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
                   ORACLE
                 </span>
               )}
+              {userHasBid && (
+                <span className="font-mono text-[9px] uppercase border border-green-400/60 text-green-400 px-1 py-0.5">
+                  YOUR BID
+                </span>
+              )}
             </div>
             {isOpen && (
               <Countdown
@@ -114,10 +136,6 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
             <span>
               <span className="opacity-100">DEPOSIT: </span>
               <span className="font-bold">{formatWei(depositRequired)}</span>
-            </span>
-            <span>
-              <span className="opacity-100">BIDS: </span>
-              <span className="font-bold">{Number(bidCount)}</span>
             </span>
           </div>
 

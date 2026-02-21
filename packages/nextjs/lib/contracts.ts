@@ -392,6 +392,17 @@ export const VAULT_ABI = [
     ],
     outputs: [],
   },
+  // updateBid
+  {
+    type: "function",
+    name: "updateBid",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "_newCommitHash", type: "bytes32" },
+      { name: "_newStorageRoot", type: "string" },
+    ],
+    outputs: [],
+  },
   // triggerRevealPhase
   { type: "function", name: "triggerRevealPhase", stateMutability: "nonpayable", inputs: [], outputs: [] },
   // revealBid
@@ -451,6 +462,15 @@ export const VAULT_ABI = [
     ],
   },
   { type: "event", name: "PhaseChanged", inputs: [{ name: "newPhase", type: "uint8", indexed: false }] },
+  {
+    type: "event",
+    name: "BidUpdated",
+    inputs: [
+      { name: "supplier", type: "address", indexed: true },
+      { name: "newCommitHash", type: "bytes32", indexed: false },
+      { name: "newStorageRoot", type: "string", indexed: false },
+    ],
+  },
   {
     type: "event",
     name: "BidRevealed",

@@ -8,7 +8,7 @@ import { VaultCard } from "~~/components/darkpool/VaultCard";
 import { FACTORY_ABI } from "~~/lib/contracts";
 import { FACTORY_ADDRESS, ZERO_ADDRESS } from "~~/lib/darkpool-config";
 
-type StatusFilter = "all" | "open" | "reveal" | "settled" | "cancelled";
+type StatusFilter = "all" | "open" | "reveal" | "settled" | "cancelled" | "mybids";
 
 const FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "ALL" },
@@ -16,6 +16,7 @@ const FILTERS: { value: StatusFilter; label: string }[] = [
   { value: "reveal", label: "REVEAL" },
   { value: "settled", label: "SETTLED" },
   { value: "cancelled", label: "CANCELLED" },
+  { value: "mybids", label: "MY BIDS" },
 ];
 
 export default function AuctionsPage() {

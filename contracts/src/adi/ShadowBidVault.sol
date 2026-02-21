@@ -50,6 +50,7 @@ contract ShadowBidVault is AccessControl, ReentrancyGuard {
 
     // ── Events ────────────────────────────────────────────────────────
     event BidCommitted(address indexed supplier, bytes32 commitHash, string storageRoot);
+    event BidUpdated(address indexed supplier, bytes32 newCommitHash, string newStorageRoot);
     event PhaseChanged(Phase newPhase);
     event BidRevealed(address indexed supplier, uint256 price);
     event BidDisqualified(address indexed supplier, string reason);
@@ -118,6 +119,28 @@ contract ShadowBidVault is AccessControl, ReentrancyGuard {
         suppliers.push(msg.sender);
 
         emit BidCommitted(msg.sender, _commitHash, _storageRoot);
+    }
+
+    /**
+     * @notice Update an existing committed bid while the auction is still open
+     * @param _newCommitHash  New keccak256(abi.encodePacked(price, salt, msg.sender))
+     * @param _newStorageRoot New Merkle root from 0G Storage
+     */
+    function updateBid(bytes32 _newCommitHash, string calldata _newStorageRoot)
+        external
+        onlyRole(SUPPLIER_ROLE)
+    {
+        require(phase == Phase.OPEN, "Not in OPEN phase");
+        require(block.timestamp < closeTime, "Auction has closed");
+        Bid storage bid = bids[msg.sender];
+        require(bid.commitHash != bytes32(0), "No existing bid to update");
+        require(!bid.revealed, "Cannot update revealed bid");
+        require(_newCommitHash != bytes32(0), "Invalid commit hash");
+        require(bytes(_newStorageRoot).length > 0, "Storage root required");
+
+        bid.commitHash = _newCommitHash;
+        bid.storageRoot = _newStorageRoot;
+        emit BidUpdated(msg.sender, _newCommitHash, _newStorageRoot);
     }
 
     // ── TRANSITION OPEN → REVEAL ──────────────────────────────────────

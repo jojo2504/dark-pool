@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { encodeAbiParameters, keccak256, parseAbiParameters, parseEther, toHex } from "viem";
@@ -27,6 +27,7 @@ interface BidPanelProps {
   revealDeadline: bigint;
   depositRequired: bigint;
   bidCount: bigint;
+  buyer: `0x${string}`;
   requiresAccreditation: boolean;
 }
 
@@ -43,6 +44,30 @@ function randomBytes32(): `0x${string}` {
   return toHex(arr) as `0x${string}`;
 }
 
+// ─── Local bid data persistence ────────────────────────────────────────────────
+type StoredBidData = { priceEth: string; salt: string; updatedAt: number };
+
+function bidStorageKey(vault: string, user: string): string {
+  return `darkpool:bid:${vault.toLowerCase()}:${user.toLowerCase()}`;
+}
+
+function saveBidData(vault: string, user: string, data: StoredBidData) {
+  try {
+    localStorage.setItem(bidStorageKey(vault, user), JSON.stringify(data));
+  } catch {
+    /* noop */
+  }
+}
+
+function loadBidData(vault: string, user: string): StoredBidData | null {
+  try {
+    const raw = localStorage.getItem(bidStorageKey(vault, user));
+    return raw ? (JSON.parse(raw) as StoredBidData) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function BidPanel({
   vaultAddress,
   phase,
@@ -50,6 +75,7 @@ export function BidPanel({
   revealDeadline,
   depositRequired,
   bidCount,
+  buyer,
   requiresAccreditation,
 }: BidPanelProps) {
   const { address: userAddress, isConnected } = useAccount();
@@ -95,6 +121,15 @@ export function BidPanel({
   const [revealPrice, setRevealPrice] = useState("");
   const [revealSalt, setRevealSalt] = useState("");
   const [showAttestModal, setShowAttestModal] = useState(false);
+  const [isModifying, setIsModifying] = useState(false);
+  const [savedBidData, setSavedBidData] = useState<StoredBidData | null>(null);
+
+  // Load saved bid data from localStorage on mount / when user changes
+  useEffect(() => {
+    if (userAddress && vaultAddress) {
+      setSavedBidData(loadBidData(vaultAddress, userAddress));
+    }
+  }, [userAddress, vaultAddress]);
 
   // Market data for AI competitiveness analysis
   const { marketData, isLoading: loadingMarket } = useMarketHistoricalData();
@@ -109,6 +144,7 @@ export function BidPanel({
   const userHasCommitted =
     userBid && userBid[0] !== "0x0000000000000000000000000000000000000000000000000000000000000000";
   const userHasRevealed = userBid && userBid[3] === true;
+  const isBuyer = userAddress?.toLowerCase() === buyer.toLowerCase();
 
   // Compliance gates
   const kybBlocked = isConnected && !isVerified;
@@ -130,6 +166,10 @@ export function BidPanel({
   const { writeContractAsync: doReveal, isPending: isRevealPending } = useWriteContract();
   const [revealTxHash, setRevealTxHash] = useState<`0x${string}` | undefined>();
   const { isSuccess: isRevealSuccess } = useWaitForTransactionReceipt({ hash: revealTxHash });
+
+  const { writeContractAsync: doUpdate, isPending: isUpdatePending } = useWriteContract();
+  const [updateTxHash, setUpdateTxHash] = useState<`0x${string}` | undefined>();
+  const { isSuccess: isUpdateSuccess } = useWaitForTransactionReceipt({ hash: updateTxHash });
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
   async function handleSignAndAttest() {
@@ -194,7 +234,36 @@ export function BidPanel({
         value: depositRequired,
       });
       setCommitTxHash(txHash);
+      // Save bid price & salt locally so the user can see them later
+      const bidData: StoredBidData = { priceEth, salt, updatedAt: Date.now() };
+      saveBidData(vaultAddress, userAddress, bidData);
+      setSavedBidData(bidData);
       toast.success("Bid committed. Save your salt.");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message.slice(0, 80) : "Failed");
+    }
+  }
+
+  async function handleUpdateBid() {
+    if (!isConnected || !userAddress) return toast.error("Connect wallet");
+    const priceWei = parseEther(priceEth || "0");
+    if (priceWei <= 0n) return toast.error("Enter valid price");
+    if (!storageRoot) return toast.error("Enter storage root hash");
+    const hash = computeCommitHash(priceWei, salt, userAddress as `0x${string}`);
+    try {
+      const txHash = await doUpdate({
+        address: vaultAddress,
+        abi: VAULT_ABI,
+        functionName: "updateBid",
+        args: [hash, storageRoot],
+      });
+      setUpdateTxHash(txHash);
+      setIsModifying(false);
+      // Update locally saved bid data
+      const bidData: StoredBidData = { priceEth, salt, updatedAt: Date.now() };
+      saveBidData(vaultAddress, userAddress, bidData);
+      setSavedBidData(bidData);
+      toast.success("Bid updated. Save your new salt.");
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message.slice(0, 80) : "Failed");
     }
@@ -283,15 +352,145 @@ export function BidPanel({
         <div className="p-6 space-y-4">
           {/* Stats */}
           <div className="flex border border-white">
-            <div className="flex-1 p-4 border-r border-white">
+            <div className={`flex-1 p-4${isBuyer ? " border-r border-white" : ""}`}>
               <p className="font-mono text-[9px] tracking-[0.2em] uppercase opacity-100 mb-1">DEPOSIT</p>
               <p className="font-mono text-sm font-bold">{formatWei(depositRequired)}</p>
             </div>
-            <div className="flex-1 p-4">
-              <p className="font-mono text-[9px] tracking-[0.2em] uppercase opacity-100 mb-1">BIDS</p>
-              <p className="font-mono text-sm font-bold">{Number(bidCount)}</p>
-            </div>
+            {isBuyer && (
+              <div className="flex-1 p-4">
+                <p className="font-mono text-[9px] tracking-[0.2em] uppercase opacity-100 mb-1">BIDS</p>
+                <p className="font-mono text-sm font-bold">{Number(bidCount)}</p>
+              </div>
+            )}
           </div>
+
+          {/* User's own bid details */}
+          {isConnected && userHasCommitted && !isBuyer && (
+            <div className="border border-green-400/30">
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[9px] uppercase text-green-400">● YOUR BID</span>
+                  <span
+                    className={`font-mono text-[9px] uppercase px-1.5 py-0.5 border ${
+                      userHasRevealed ? "border-blue-400/40 text-blue-400" : "border-green-400/40 text-green-400/80"
+                    }`}
+                  >
+                    {userHasRevealed ? "REVEALED" : "COMMITTED"}
+                  </span>
+                </div>
+                {isOpen && !userHasRevealed && !isModifying && (
+                  <button
+                    onClick={() => {
+                      setIsModifying(true);
+                      setSalt(randomBytes32());
+                      setPriceEth("");
+                      setStorageRoot("");
+                    }}
+                    className="font-mono text-[9px] uppercase border border-white/40 px-2 py-1 hover:opacity-60 transition-all"
+                  >
+                    MODIFY BID
+                  </button>
+                )}
+              </div>
+
+              {/* Full bid details */}
+              {userBid && (
+                <div className="divide-y divide-white/10">
+                  {/* Bid Price — from localStorage (pre-reveal) or on-chain (post-reveal) */}
+                  <div className="px-4 py-2.5">
+                    <p className="font-mono text-[9px] tracking-[0.15em] uppercase opacity-50 mb-1">BID PRICE</p>
+                    {userHasRevealed ? (
+                      <p className="font-mono text-sm font-bold text-white">{formatWei(userBid[2] as bigint)}</p>
+                    ) : savedBidData?.priceEth ? (
+                      <div>
+                        <p className="font-mono text-sm font-bold text-white">{savedBidData.priceEth} ETH</p>
+                        <p className="font-mono text-[9px] opacity-40 mt-0.5">
+                          STORED LOCALLY — HIDDEN ON-CHAIN UNTIL REVEAL
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="font-mono text-[10px] opacity-40 italic">SEALED — REVEAL TO DISPLAY</p>
+                    )}
+                  </div>
+
+                  {/* Salt — from localStorage (only pre-reveal) */}
+                  {!userHasRevealed && savedBidData?.salt && (
+                    <div className="px-4 py-2.5">
+                      <p className="font-mono text-[9px] tracking-[0.15em] uppercase opacity-50 mb-1">YOUR SALT</p>
+                      <p
+                        className="font-mono text-[10px] text-white break-all cursor-pointer hover:opacity-70 transition-opacity"
+                        onClick={() => {
+                          navigator.clipboard.writeText(savedBidData.salt);
+                          toast.success("Salt copied");
+                        }}
+                        title="Click to copy"
+                      >
+                        {savedBidData.salt}
+                      </p>
+                      <p className="font-mono text-[9px] opacity-40 mt-0.5">⚠ YOU NEED THIS TO REVEAL YOUR BID</p>
+                    </div>
+                  )}
+
+                  {/* Commit Hash */}
+                  <div className="px-4 py-2.5">
+                    <p className="font-mono text-[9px] tracking-[0.15em] uppercase opacity-50 mb-1">COMMIT HASH</p>
+                    <p
+                      className="font-mono text-[10px] text-white break-all cursor-pointer hover:opacity-70 transition-opacity"
+                      onClick={() => {
+                        navigator.clipboard.writeText(userBid[0] as string);
+                        toast.success("Commit hash copied");
+                      }}
+                      title="Click to copy"
+                    >
+                      {userBid[0] as string}
+                    </p>
+                  </div>
+
+                  {/* Storage Root */}
+                  <div className="px-4 py-2.5">
+                    <p className="font-mono text-[9px] tracking-[0.15em] uppercase opacity-50 mb-1">STORAGE ROOT</p>
+                    <p
+                      className="font-mono text-[10px] text-white break-all cursor-pointer hover:opacity-70 transition-opacity"
+                      onClick={() => {
+                        navigator.clipboard.writeText(userBid[1] as string);
+                        toast.success("Storage root copied");
+                      }}
+                      title="Click to copy"
+                    >
+                      {userBid[1] as string}
+                    </p>
+                  </div>
+
+                  {/* Status row */}
+                  <div className="px-4 py-2.5 flex items-center gap-4">
+                    <div>
+                      <p className="font-mono text-[9px] tracking-[0.15em] uppercase opacity-50 mb-1">DEPOSIT</p>
+                      <span
+                        className={`font-mono text-[10px] ${(userBid[4] as boolean) ? "text-green-400" : "opacity-60"}`}
+                      >
+                        {(userBid[4] as boolean) ? "PAID ✓" : "NOT PAID"}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-mono text-[9px] tracking-[0.15em] uppercase opacity-50 mb-1">RETURNED</p>
+                      <span
+                        className={`font-mono text-[10px] ${(userBid[5] as boolean) ? "text-green-400" : "opacity-60"}`}
+                      >
+                        {(userBid[5] as boolean) ? "YES ✓" : "NO"}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-mono text-[9px] tracking-[0.15em] uppercase opacity-50 mb-1">REVEALED</p>
+                      <span className={`font-mono text-[10px] ${userHasRevealed ? "text-blue-400" : "opacity-60"}`}>
+                        {userHasRevealed ? "YES ✓" : "NO"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Not connected */}
           {!isConnected && (isOpen || isReveal) && (
@@ -434,8 +633,82 @@ export function BidPanel({
             </div>
           )}
 
+          {/* MODIFY BID FORM */}
+          {isOpen && userHasCommitted && isModifying && canBid && (
+            <div className="space-y-3">
+              <div className="border border-yellow-400/30 p-3">
+                <p className="font-mono text-[10px] uppercase text-yellow-400">
+                  ⚠ MODIFYING YOUR BID — ENTER NEW PRICE AND STORAGE ROOT
+                </p>
+              </div>
+              <div>
+                <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 block mb-2">
+                  NEW BID PRICE (ETH)
+                </label>
+                <input
+                  type="number"
+                  step="0.0001"
+                  value={priceEth}
+                  onChange={e => setPriceEth(e.target.value)}
+                  placeholder="0.5"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100 block mb-2">
+                  NEW STORAGE ROOT
+                </label>
+                <input
+                  type="text"
+                  value={storageRoot}
+                  onChange={e => setStorageRoot(e.target.value)}
+                  placeholder="0x..."
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="font-mono text-[10px] tracking-[0.15em] uppercase opacity-100">NEW SALT</label>
+                  <button
+                    onClick={() => setSalt(randomBytes32())}
+                    className="font-mono text-[10px] uppercase opacity-100 hover:opacity-100 transition-opacity"
+                  >
+                    [REGEN]
+                  </button>
+                </div>
+                <div
+                  className="border border-white px-4 py-3 font-mono text-[10px] opacity-100 truncate cursor-pointer hover:opacity-100 transition-all duration-100"
+                  onClick={() => {
+                    navigator.clipboard.writeText(salt);
+                    toast.success("Salt copied");
+                  }}
+                >
+                  {salt}
+                </div>
+                <p className="font-mono text-[10px] uppercase opacity-100 mt-1">
+                  ⚠ SAVE THIS NEW SALT — YOU NEED IT TO REVEAL
+                </p>
+              </div>
+              <div className="flex gap-0">
+                <button
+                  onClick={handleUpdateBid}
+                  disabled={isUpdatePending}
+                  className="flex-1 py-4 border border-white bg-white text-black font-mono text-xs tracking-[0.15em] uppercase font-bold hover:opacity-80 disabled:opacity-20 transition-all duration-100"
+                >
+                  {isUpdatePending ? "UPDATING..." : "UPDATE BID"}
+                </button>
+                <button
+                  onClick={() => setIsModifying(false)}
+                  className="px-6 py-4 border border-white border-l-0 font-mono text-xs tracking-[0.15em] uppercase hover:opacity-60 transition-all duration-100"
+                >
+                  CANCEL
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* COMMITTED — waiting for reveal phase */}
-          {(isCommitSuccess || (isOpen && userHasCommitted)) && !isReveal && (
+          {(isCommitSuccess || isUpdateSuccess || (isOpen && userHasCommitted)) && !isReveal && !isModifying && (
             <div className="border border-white p-6 text-center">
               <p className="font-mono text-xs font-bold uppercase tracking-[0.1em] mb-1">BID COMMITTED</p>
               <p className="font-mono text-[10px] uppercase opacity-100">REVEAL AFTER AUCTION CLOSES</p>
