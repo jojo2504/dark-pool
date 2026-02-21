@@ -30,6 +30,7 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
       { ...contract, functionName: "requiresAccreditation" },
       { ...contract, functionName: "paused" },
       { ...contract, functionName: "oracle" },
+      { ...contract, functionName: "buyer" },
     ],
   });
 
@@ -77,6 +78,8 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
   const isPaused = (data[5].result ?? false) as boolean;
   const oracle = (data[6].result ?? "0x0") as string;
   const hasOracle = oracle !== "0x0000000000000000000000000000000000000000";
+  const buyer = (data[7].result ?? ZERO_ADDRESS) as string;
+  const isCreator = !!userAddress && buyer.toLowerCase() === userAddress.toLowerCase();
 
   const phase = phaseRaw as VaultPhase;
   const status = phaseToStatus(phase, closeTime);
@@ -91,11 +94,17 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: index * 0.03 }}>
       <Link href={`/auctions/${address}`}>
-        <div className="group border border-white p-6 hover:opacity-60 transition-all duration-100 cursor-pointer">
+        <div className="group border border-white/30 hover:border-white p-6 transition-all duration-150 cursor-pointer relative">
+          {/* Creator indicator */}
+          {isCreator && (
+            <div className="absolute top-0 right-0 font-mono text-[8px] uppercase tracking-[0.15em] bg-white text-black px-2 py-0.5">
+              YOUR AUCTION
+            </div>
+          )}
           {/* Status */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-100 group-hover:opacity-60">
+              <span className="font-mono text-[10px] tracking-[0.2em] uppercase opacity-100">
                 {status.toUpperCase()}
               </span>
               {isPaused && (
@@ -109,9 +118,7 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
                 </span>
               )}
               {hasOracle && (
-                <span className="font-mono text-[9px] uppercase border border-white/20 text-white px-1 py-0.5">
-                  ORACLE
-                </span>
+                <span className="font-mono text-[9px] uppercase border border-current/20 px-1 py-0.5">ORACLE</span>
               )}
               {userHasBid && (
                 <span className="font-mono text-[9px] uppercase border border-green-400/60 text-green-400 px-1 py-0.5">
@@ -129,12 +136,12 @@ export function VaultCard({ address, index = 0, statusFilter = "all" }: VaultCar
 
           {/* Title */}
           <h3 className="font-mono text-sm font-bold uppercase tracking-[0.02em] mb-1">{title}</h3>
-          <p className="font-mono text-[10px] opacity-100 mb-6 truncate">{address}</p>
+          <p className="font-mono text-[10px] opacity-60 mb-6 truncate">{address}</p>
 
           {/* Bottom row */}
           <div className="flex items-center justify-between font-mono text-xs">
             <span>
-              <span className="opacity-100">DEPOSIT: </span>
+              <span className="opacity-60">DEPOSIT: </span>
               <span className="font-bold">{formatWei(depositRequired)}</span>
             </span>
           </div>
