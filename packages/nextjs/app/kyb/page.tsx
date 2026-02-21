@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { type KYBStatus, KYB_STATUS_COLOR, KYB_STATUS_LABEL } from "~~/lib/types";
@@ -30,24 +30,7 @@ export default function KybPage() {
   const [isDemo, setIsDemo] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Determine step from wallet + status
-  useEffect(() => {
-    if (!isConnected) {
-      setStep("connect");
-      return;
-    }
-    if (kybStatus) {
-      const s = kybStatus.kybStatus;
-      if (s === "not_found") setStep("register");
-      else if (s === "pending" || s === "under_review") setStep("verify");
-      else setStep("status");
-    } else {
-      fetchStatus();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, walletAddress]);
-
-  async function fetchStatus() {
+  const fetchStatus = useCallback(async () => {
     if (!walletAddress) return;
     setIsLoading(true);
     try {
@@ -59,7 +42,29 @@ export default function KybPage() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [walletAddress]);
+
+  // When wallet connects or address changes, reset status and re-fetch
+  useEffect(() => {
+    if (!isConnected || !walletAddress) {
+      setStep("connect");
+      setKybStatus(null);
+      return;
+    }
+    // Address is now available — always fetch fresh status
+    setKybStatus(null);
+    fetchStatus();
+  }, [isConnected, walletAddress, fetchStatus]);
+
+  // Derive the step whenever kybStatus changes
+  useEffect(() => {
+    if (!isConnected || !walletAddress) return;
+    if (!kybStatus) return;
+    const s = kybStatus.kybStatus;
+    if (s === "not_found") setStep("register");
+    else if (s === "pending" || s === "under_review") setStep("verify");
+    else setStep("status");
+  }, [kybStatus, isConnected, walletAddress]);
 
   async function handleSubmit() {
     if (!walletAddress) return;
